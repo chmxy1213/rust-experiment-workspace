@@ -1,0 +1,10 @@
+[package]
+name = "bash-pty-recorder"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+portable-pty = "0.8"
+vte = "0.11"
+anyhow = "1.0"
+crossterm = "0.27"
