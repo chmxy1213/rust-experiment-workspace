@@ -45,11 +45,25 @@ fn main() -> Result<()> {
     })?;
 
     let cwd = std::env::current_dir()?;
-    let script_path = cwd.join("bash_recorder.sh");
-
-    let mut cmd = CommandBuilder::new("bash");
-    cmd.arg("--rcfile");
-    cmd.arg(script_path);
+    
+    // 检测操作系统，选择合适的 shell
+    let mut cmd = if cfg!(windows) {
+        let script_path = cwd.join("powershell_recorder.ps1");
+        let mut c = CommandBuilder::new("powershell.exe");
+        c.arg("-NoExit");
+        c.arg("-NoLogo");
+        c.arg("-ExecutionPolicy");
+        c.arg("Bypass");
+        c.arg("-File");
+        c.arg(script_path);
+        c
+    } else {
+        let script_path = cwd.join("bash_recorder.sh");
+        let mut c = CommandBuilder::new("bash");
+        c.arg("--rcfile");
+        c.arg(script_path);
+        c
+    };
 
     let mut child = pair.slave.spawn_command(cmd)?;
     drop(pair.slave);

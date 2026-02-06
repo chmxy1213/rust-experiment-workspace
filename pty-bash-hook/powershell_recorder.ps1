@@ -6,6 +6,10 @@
 # 功能: 通过 stdout 发送不可见的 OSC 序列，向宿主进程汇报命令状态
 # ==============================================================================
 
+# 设置输出编码为 UTF-8，避免乱码
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+$OutputEncoding = [System.Text.Encoding]::UTF8
+
 # 加载用户配置 (如果需要模拟完整交互式环境)
 # 注意：PowerShell 启动时通过 -File 可能会跳过部分 Profile 加载，视具体启动参数而定。
 # 如果此脚本通过 powershell -NoExit -File 调用，建议保持默认 Profile 加载行为。
@@ -24,7 +28,8 @@ function Send-PtySignal {
     # 使用 [Console]::Write 直接写入标准输出，避免 Write-Host 可能带来的换行或格式干扰
     $esc = [char]0x1b
     $bel = [char]0x07
-    [Console]::Write("$esc]666;$Type;$Payload$bel")
+    $signal = $esc + ']666;' + $Type + ';' + $Payload + $bel
+    [Console]::Write($signal)
 }
 
 # ------------------------------------------------------------------------------

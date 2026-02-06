@@ -197,6 +197,7 @@ fn run_command(
     let exit_marker = "EXIT_CODE:";
     // Construct command
     let cmd_line = format!("{}; echo \"{}{}$?\"", cmd, exit_marker, "");
+    // ls; echo "EXIT_CODE:$?"
     writeln!(writer, "{}", cmd_line)?;
 
     // 1. Read until the marker ("EXIT_CODE:"). The content before is the command output (plus echo).
