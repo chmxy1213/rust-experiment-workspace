@@ -8,3 +8,6 @@ portable-pty = "0.8"
 vte = "0.11"
 anyhow = "1.0"
 crossterm = "0.27"
+
+[target.'cfg(windows)'.dependencies]
+winpty-rs = "1"
