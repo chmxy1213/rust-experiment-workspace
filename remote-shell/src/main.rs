@@ -10,7 +10,10 @@ mod api;
 #[serde(tag = "type", rename_all = "camelCase")]
 enum ServerLogMsg {
     LogOutput { data: String },
-    LogEnd { exit_code: i32 },
+    LogEnd { 
+        #[serde(rename = "exitCode")]
+        exit_code: i32 
+    },
 }
 
 #[derive(Deserialize, Debug)]
