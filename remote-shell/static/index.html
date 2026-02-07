@@ -222,12 +222,22 @@
                  
              } else if (msg.type === 'logEnd') {
                  // Command finished
+                 
+                 // If no active command is set (msg logOutput was empty/skipped), 
+                 // grab the next one from queue if available
+                 if (!activeCommand && commandQueue.length > 0) {
+                     activeCommand = commandQueue.shift();
+                     activeCommand.started = true;
+                     activeCommand.statusElement.textContent = "Running..."; 
+                 }
+
                  if (activeCommand) {
                      completeLog(activeCommand, msg.exitCode.toString());
                      activeCommand = null;
                  }
              }
         }
+
         
         function createLogEntry(cmd, id) {
              const entry = document.createElement('div');
