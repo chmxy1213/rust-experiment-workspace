@@ -14,7 +14,8 @@ __rs_preexec_bash() {
     if [ "$BASH_COMMAND" != "__rs_precmd_bash" ]; then
         if [ -z "$__rs_in_execution" ]; then
             __rs_in_execution="yes"
-            printf "\033]6973;START\007"
+            # Format: START;USER;HOSTNAME;PWD
+            printf "\033]6973;START;%s;%s;%s\007" "$USER" "$HOSTNAME" "$PWD"
         fi
     fi
 }

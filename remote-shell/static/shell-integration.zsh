@@ -17,7 +17,8 @@ __rs_precmd_zsh() {
 __rs_preexec_zsh() {
     if [ -z "$__rs_in_execution" ]; then
         __rs_in_execution="yes"
-        print -n "\033]6973;START\007"
+        # Format: START;USER;HOST;CWD
+        print -n "\033]6973;START;${USER};${HOST};${PWD}\007"
     fi
 }
 

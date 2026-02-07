@@ -9,10 +9,17 @@ mod api;
 #[derive(Serialize)]
 #[serde(tag = "type", rename_all = "camelCase")]
 enum ServerLogMsg {
-    LogOutput { data: String },
-    LogEnd { 
+    LogStart {
+        user: String,
+        host: String,
+        cwd: String,
+    },
+    LogOutput {
+        data: String,
+    },
+    LogEnd {
         #[serde(rename = "exitCode")]
-        exit_code: i32 
+        exit_code: i32,
     },
 }
 

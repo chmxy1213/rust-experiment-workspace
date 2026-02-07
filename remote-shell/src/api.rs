@@ -204,7 +204,7 @@ impl vte::Perform for LogInterpreter {
         if code == b"6973" {
              // Handle simple command parameter structure (params[1])
              // Cases: 
-             // 1. 6973;START
+             // 1. 6973;START;USER;HOST;CWD...
              // 2. 6973;END;0
             if params.len() > 1 {
                 let cmd = params[1];
@@ -212,6 +212,32 @@ impl vte::Perform for LogInterpreter {
                 if cmd == b"START" {
                     self.capturing = true;
                     self.buffer.clear(); 
+                    
+                    // Parse Context: params[2]=USER, params[3]=HOST, params[4..]=CWD
+                    let mut user = String::new();
+                    let mut host = String::new();
+                    let mut cwd = String::new();
+
+                    if params.len() > 2 {
+                        user = String::from_utf8_lossy(params[2]).to_string();
+                    }
+                    if params.len() > 3 {
+                        host = String::from_utf8_lossy(params[3]).to_string();
+                    }
+                    if params.len() > 4 {
+                        // Join remaining parts with ; in case CWD contained semicolons
+                        let parts: Vec<String> = params[4..].iter()
+                            .map(|&p| String::from_utf8_lossy(p).to_string())
+                            .collect();
+                        cwd = parts.join(";");
+                    }
+
+                    let _ = self.tx_log.blocking_send(ServerLogMsg::LogStart {
+                        user,
+                        host,
+                        cwd,
+                    });
+
                 } else if cmd.starts_with(b"END") {
                      // Flush pending buffer first
                     self.flush();

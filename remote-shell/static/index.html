@@ -199,20 +199,47 @@
         });
 
         function handleServerMessage(msg) {
-             if (msg.type === 'logOutput') {
+             if (msg.type === 'logStart') {
+                 // A new command has started execution on the backend.
+                 // This might be triggered by our 'Run' button (already in queue)
+                 // OR by manual terminal input (not in queue).
+                 
+                 // If we have a pending command in queue that is waiting to start:
+                 if (activeCommand && !activeCommand.started) {
+                     // This likely matches the queued command
+                     activeCommand.started = true;
+                     activeCommand.statusElement.textContent = "Running...";
+                     activeCommand.statusElement.className = 'log-status running';
+                     updateLogContext(activeCommand, msg);
+                 } 
+                 else if (commandQueue.length > 0) {
+                     // Pick next from queue
+                     activeCommand = commandQueue.shift();
+                     activeCommand.started = true;
+                     activeCommand.statusElement.textContent = "Running...";
+                     activeCommand.statusElement.className = 'log-status running';
+                     updateLogContext(activeCommand, msg);
+                 } 
+                 else {
+                     // Manual input from terminal! Create a new entry gracefully.
+                     // Since we don't know the full command line string from here easily,
+                     // we can use a placeholder or just show the context.
+                     const mockId = Math.random().toString(36).substring(7);
+                     // We'll use "Terminal Session" or the CWD as title if command is unknown?
+                     // Or just leave it blank? Let's use "Interactive Command".
+                     activeCommand = createLogEntry("Interactive Command", mockId);
+                     activeCommand.started = true;
+                     updateLogContext(activeCommand, msg);
+                 }
+                 
+             } else if (msg.type === 'logOutput') {
                  // We received clean log content
-                 // Ensure we have an active command
+                 // Ensure we have an active command (created via logStart usually)
                  if (!activeCommand) {
-                     if (commandQueue.length > 0) {
-                         activeCommand = commandQueue.shift();
-                         activeCommand.started = true;
-                         activeCommand.statusElement.textContent = "Running...";
-                         activeCommand.statusElement.className = 'log-status running';
-                     } else {
-                         // Received output but no command in queue (maybe queued manually?)
-                         // We can ignore or create a dummy entry.
-                         return; 
-                     }
+                      // Fallback if logStart was missed or order issue: create dummy
+                      const mockId = Math.random().toString(36).substring(7);
+                      activeCommand = createLogEntry("Unknown Command", mockId);
+                      activeCommand.started = true;
                  }
                  
                  activeCommand.buffer += msg.data;
@@ -245,7 +272,16 @@
              
              const header = document.createElement('div');
              header.className = 'log-header';
-             header.innerHTML = `<span class="log-cmd">${escapeHtml(cmd)}</span> <span class="log-status running">Queued</span>`;
+             // Will populate context info later
+             header.innerHTML = `
+                <div style="display:flex; flex-direction:column; gap:2px;">
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <span class="log-cmd">${escapeHtml(cmd)}</span> 
+                        <span class="log-status running">Queued</span>
+                    </div>
+                    <div class="log-meta" style="font-size:10px; color:#888; display:none;"></div>
+                </div>
+             `;
              
              const output = document.createElement('div');
              output.className = 'log-output';
@@ -260,10 +296,18 @@
                  id: id,
                  element: entry,
                  statusElement: header.querySelector('.log-status'),
+                 metaElement: header.querySelector('.log-meta'),
                  outputElement: output,
                  buffer: '',
                  started: false
              };
+        }
+        
+        function updateLogContext(commandObj, msg) {
+            if (!commandObj.metaElement) return;
+            const { user, host, cwd } = msg;
+            commandObj.metaElement.style.display = 'block';
+            commandObj.metaElement.textContent = `${user}@${host} : ${cwd}`;
         }
         
         function completeLog(commandObj, exitCode) {
