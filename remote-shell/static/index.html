@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Remote Shell - Integration</title>
+    <link rel="stylesheet" href="/static/xterm.css" />
+    <style>
+        body { 
+            margin: 0; padding: 0; background-color: #1e1e1e; 
+            height: 100vh; display: flex; flex-direction: column;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            color: #ccc;
+        }
+
+        #top-container {
+            display: flex;
+            height: 60%;
+            border-bottom: 2px solid #333;
+        }
+
+        #terminal-container {
+            flex: 1;
+            background-color: #000;
+            overflow: hidden;
+            position: relative;
+        }
+        #terminal { width: 100%; height: 100%; }
+
+        #input-container {
+            width: 350px;
+            display: flex;
+            flex-direction: column;
+            padding: 10px;
+            background-color: #252526;
+            border-left: 1px solid #333;
+            box-sizing: border-box;
+        }
+
+        #logs-container {
+            flex: 1;
+            height: 40%;
+            overflow-y: auto;
+            background-color: #1e1e1e;
+            padding: 10px;
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 13px;
+        }
+        
+        textarea#cmd-input {
+            flex: 1;
+            background-color: #3c3c3c;
+            color: #fff;
+            border: 1px solid #555;
+            resize: none;
+            padding: 8px;
+            font-family: monospace;
+            margin-bottom: 10px;
+            outline: none;
+        }
+        textarea#cmd-input:focus { border-color: #007acc; }
+
+        #controls button {
+            background-color: #0e639c;
+            color: white;
+            border: none; padding: 6px 12px;
+            cursor: pointer;
+            border-radius: 2px;
+        }
+        #controls button:hover { background-color: #1177bb; }
+        
+        .log-entry {
+            margin-bottom: 8px;
+            border: 1px solid #333;
+            background-color: #2a2a2a;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        .log-header {
+            background-color: #333;
+            padding: 4px 8px;
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+            font-weight: bold;
+            align-items: center;
+        }
+        .log-cmd { color: #4ec9b0; font-family: monospace; }
+        .log-status { padding: 2px 6px; border-radius: 3px; font-size: 11px; }
+        .log-status.running { background-color: #a8a005; color: black; }
+        .log-status.success { background-color: #388a34; color: white; }
+        .log-status.error { background-color: #c54040; color: white; }
+        
+        .log-output {
+            padding: 8px;
+            white-space: pre-wrap;
+            color: #d4d4d4;
+            max-height: 150px;
+            overflow-y: auto;
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+    <div id="top-container">
+        <div id="terminal-container">
+            <div id="terminal"></div>
+        </div>
+        <div id="input-container">
+            <h3>Command Input</h3>
+            <textarea id="cmd-input" placeholder="Type command..."></textarea>
+            <div id="controls" style="text-align: right;">
+                <button id="btn-send">Run</button>
+            </div>
+            <p style="font-size:11px; color:#888">Shift+Enter for newline</p>
+        </div>
+    </div>
+    
+    <div id="logs-container">
+        <div style="padding-bottom:10px; border-bottom:1px solid #333; margin-bottom:10px; font-weight:bold;">Execution Logs</div>
+        <div id="logs-list"></div>
+    </div>
+
+    <script src="/static/xterm.js"></script>
+    <script src="/static/addon-fit.js"></script>
+    <script>
+        // --- xterm.js setup ---
+        const term = new Terminal({
+            cursorBlink: true,
+            fontSize: 14,
+            theme: { background: '#000000' },
+            allowProposedApi: true
+        });
+        const fitAddon = new FitAddon.FitAddon();
+        term.loadAddon(fitAddon);
+        
+        // Register custom OSC handler for ID 6973
+        // This handles: START and END;code (sent by shell integration trap)
+        // We only use this to HIDE the markers from the terminal view.
+        // The logging logic is now driven by server-side messages.
+        term.parser.registerOscHandler(6973, (data) => {
+            return true; // Hide from terminal output
+        });
+
+        term.open(document.getElementById('terminal'));
+        fitAddon.fit();
+
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const wsUrl = `${protocol}//${window.location.host}/ws`;
+        const ws = new WebSocket(wsUrl);
+        
+        const input = document.getElementById('cmd-input');
+        const btnSend = document.getElementById('btn-send');
+        const logsList = document.getElementById('logs-list');
+
+        // Queue of commands waiting for execution START signal
+        // We assume FIFO: Use clicks Run -> Queue.push() -> Server LogOutput -> Queue.shift matching
+        let commandQueue = [];
+        let activeCommand = null;
+
+        // Note: handleOscMessage is removed as logic moved to server messages.
+
+        ws.onopen = () => {
+            term.write('\x1b[32m[Connected]\r\n\x1b[0m');
+            ws.send(JSON.stringify({ type: 'resize', cols: term.cols, rows: term.rows }));
+        };
+
+        ws.onmessage = (event) => {
+            const data = event.data;
+            if (data instanceof Blob) {
+                // Binary data for terminal
+                data.text().then(text => {
+                     term.write(text);
+                });
+            } else {
+                // Text data (JSON controls/logs)
+                try {
+                    const msg = JSON.parse(data);
+                    handleServerMessage(msg);
+                } catch (e) {
+                    console.error("Failed to parse msg:", data);
+                }
+            }
+        };
+        
+        // Handle terminal input
+        term.onData(data => {
+            if (ws.readyState === 1) {
+                ws.send(JSON.stringify({ type: 'input', data: data }));
+            }
+        });
+        
+        // Handle window resize
+        window.addEventListener('resize', () => {
+             fitAddon.fit();
+             if (ws.readyState === 1) {
+                 ws.send(JSON.stringify({ type: 'resize', cols: term.cols, rows: term.rows }));
+             }
+        });
+
+        function handleServerMessage(msg) {
+             if (msg.type === 'logOutput') {
+                 // We received clean log content
+                 // Ensure we have an active command
+                 if (!activeCommand) {
+                     if (commandQueue.length > 0) {
+                         activeCommand = commandQueue.shift();
+                         activeCommand.started = true;
+                         activeCommand.statusElement.textContent = "Running...";
+                         activeCommand.statusElement.className = 'log-status running';
+                     } else {
+                         // Received output but no command in queue (maybe queued manually?)
+                         // We can ignore or create a dummy entry.
+                         return; 
+                     }
+                 }
+                 
+                 activeCommand.buffer += msg.data;
+                 activeCommand.outputElement.textContent = activeCommand.buffer;
+                 // Auto-scroll output
+                 activeCommand.outputElement.scrollTop = activeCommand.outputElement.scrollHeight;
+                 
+             } else if (msg.type === 'logEnd') {
+                 // Command finished
+                 if (activeCommand) {
+                     completeLog(activeCommand, msg.exitCode.toString());
+                     activeCommand = null;
+                 }
+             }
+        }
+        
+        function createLogEntry(cmd, id) {
+             const entry = document.createElement('div');
+             entry.className = 'log-entry';
+             
+             const header = document.createElement('div');
+             header.className = 'log-header';
+             header.innerHTML = `<span class="log-cmd">${escapeHtml(cmd)}</span> <span class="log-status running">Queued</span>`;
+             
+             const output = document.createElement('div');
+             output.className = 'log-output';
+             
+             entry.appendChild(header);
+             entry.appendChild(output);
+             
+             logsList.appendChild(entry);
+             logsList.scrollTop = logsList.scrollHeight; // Auto scroll to bottom
+             
+             return {
+                 id: id,
+                 element: entry,
+                 statusElement: header.querySelector('.log-status'),
+                 outputElement: output,
+                 buffer: '',
+                 started: false
+             };
+        }
+        
+        function completeLog(commandObj, exitCode) {
+            const statusEl = commandObj.statusElement;
+            if (exitCode === '0') {
+                statusEl.className = 'log-status success';
+                statusEl.textContent = `Success (0)`;
+            } else {
+                statusEl.className = 'log-status error';
+                statusEl.textContent = `Error (${exitCode})`;
+            }
+        }
+        
+        // Removed processIncomingData and stripOsc/stripAnsi logic as they are server-side now.
+        
+        function runCommand() {
+            const cmd = input.value.trim();
+            if (!cmd) return;
+            if (ws.readyState !== 1) return;
+
+            const cmdId = Math.random().toString(36).substring(7);
+            
+            // Create UI entry and push to queue
+            const entry = createLogEntry(cmd, cmdId);
+            commandQueue.push(entry);
+            
+            // Send raw command to backend (plus newline)
+            // No wrapper.
+            ws.send(JSON.stringify({ type: 'run', data: cmd, id: cmdId }));
+            
+            input.value = '';
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        // Event Listeners for Command Input
+        btnSend.addEventListener('click', runCommand);
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                runCommand();
+            }
+        });
+    </script>
+</body>
+</html>
