@@ -39,12 +39,59 @@
 
         #logs-container {
             flex: 1;
+            /* Use Flexbox for layout to split into two columns */
+            display: flex;
             height: 40%;
-            overflow-y: auto;
             background-color: #1e1e1e;
-            padding: 10px;
+            /* Remove padding from container to use flex items */
+            padding: 0; 
             font-family: 'Consolas', 'Courier New', monospace;
             font-size: 13px;
+        }
+
+        #raw-stream-content {
+            flex: 1;
+            /* Scroll vertically if content overflows */
+            overflow-y: auto; 
+            white-space: pre-wrap; 
+            margin: 0; 
+            font-family: monospace;
+            font-size: 11px;
+            color: #888;
+        }
+
+        #logs-list {
+            flex: 1;
+            padding: 10px;
+            overflow-y: auto;
+            border-right: 1px solid #333;
+        }
+        
+        #logs-entries {
+            /* Container for actual entries inside logs-list */
+            display: flex;
+            flex-direction: column;
+        }
+
+        #raw-stream-container {
+            flex: 1;
+            padding: 10px;
+            background-color: #121212;
+            color: #aaa;
+            border-left: 1px solid #333;
+            /* Flex layout for header and content */
+            display: flex;
+            flex-direction: column;
+        }
+        
+        #raw-stream-content {
+            flex: 1;
+            overflow-y: auto;
+            white-space: pre-wrap; 
+            margin:0; 
+            font-family: monospace;
+            font-size: 11px;
+            color: #666;
         }
         
         textarea#cmd-input {
@@ -126,8 +173,17 @@
     </div>
     
     <div id="logs-container">
-        <div style="padding-bottom:10px; border-bottom:1px solid #333; margin-bottom:10px; font-weight:bold;">Execution Logs</div>
-        <div id="logs-list"></div>
+        <div id="logs-list">
+            <div style="padding-bottom:10px; border-bottom:1px solid #333; margin-bottom:10px; font-weight:bold;">Execution Logs (Structured)</div>
+            <div id="logs-entries"></div>
+        </div>
+        <div id="raw-stream-container">
+             <div style="padding-bottom:10px; border-bottom:1px solid #333; margin-bottom:10px; font-weight:bold; display:flex; justify-content:space-between;">
+                 <span>Raw PTY Output (Stripped)</span>
+                 <button id="btn-clear-raw" style="cursor:pointer; background:#333; color:#ccc; border:none; border-radius:3px; font-size:10px; padding:2px 6px;">Clear</button>
+             </div>
+             <pre id="raw-stream-content"></pre>
+        </div>
     </div>
 
     <script src="/static/xterm.js"></script>
@@ -159,9 +215,16 @@
         
         const input = document.getElementById('cmd-input');
         const btnSend = document.getElementById('btn-send');
-        const logsList = document.getElementById('logs-list');
+        const logsList = document.getElementById('logs-entries');
+        const rawStreamContent = document.getElementById('raw-stream-content');
+        const btnClearRaw = document.getElementById('btn-clear-raw');
+
         const shellSelect = document.getElementById('shell-select');
         const btnReconnect = document.getElementById('btn-reconnect');
+        
+        btnClearRaw.addEventListener('click', () => {
+             rawStreamContent.textContent = '';
+        });
 
         function connect() {
             if (ws) {
@@ -237,6 +300,14 @@
                 if (data instanceof Blob) {
                     data.text().then(text => {
                          term.write(text);
+                         
+                         // Append to raw stream container
+                         const span = document.createElement('span');
+                         span.textContent = text;
+                         rawStreamContent.appendChild(span);
+                         // Auto-scroll
+                         const container = document.getElementById('raw-stream-container');
+                         container.scrollTop = container.scrollHeight;
                     });
                 } else {
                     try {
@@ -375,7 +446,9 @@
              entry.appendChild(output);
              
              logsList.appendChild(entry);
-             logsList.scrollTop = logsList.scrollHeight; // Auto scroll to bottom
+             // Ensure we scroll the container (first parent with scroll)
+             const container = document.getElementById('logs-list');
+             container.scrollTop = container.scrollHeight; 
              
              return {
                  id: id,
