@@ -7,14 +7,16 @@ use std::{
 };
 
 use axum::{
-    extract::{Query, ws::{Message, WebSocket, WebSocketUpgrade}},
+    extract::{
+        ws::{Message, WebSocket, WebSocketUpgrade},
+        Query,
+    },
     response::{Html, IntoResponse},
 };
 use futures::{sink::SinkExt, stream::StreamExt};
 use portable_pty::{CommandBuilder, NativePtySystem, PtySize, PtySystem};
-use tokio::sync::mpsc;
 use serde::Deserialize;
-
+use tokio::sync::mpsc;
 
 use crate::{ClientMsg, ServerLogMsg};
 
@@ -97,29 +99,22 @@ async fn handle_socket(socket: WebSocket, params: ConnectParams) {
     thread::spawn(move || {
         let mut buf = [0u8; 2048];
         let mut parser = vte::Parser::new();
-        let mut interpreter = LogInterpreter::new(tx_log);
+        let mut log_interpreter = LogInterpreter::new(tx_log);
+        let mut output_stripper = AnsiStripper::new(tx_output);
+        let mut output_parser = vte::Parser::new();
 
         loop {
             match reader.read(&mut buf) {
                 Ok(n) if n > 0 => {
                     let data = buf[..n].to_vec();
-                    // Send RAW output to frontend terminal
-                    if tx_output.blocking_send(data.clone()).is_err() {
-                        break;
-                    }
 
-                    // Feed data to VTE parser for log extraction
-                    parser.advance(&mut interpreter, &data);
-                    
-                    // Flush any pending text after processing a chunk (optional but good for responsiveness)
+                    // Process for stripped output
+                    output_parser.advance(&mut output_stripper, &data);
+                    output_stripper.flush();
 
-                    // interpreter.flush(); // Actually let's not flush too eagerly to avoid tiny chunks, 
-                    // or maybe flushing on newlines is better. 
-                    // But our flush logic is checking buffer emptiness. 
-                    // Let's do a flush if we have significant data or just trust the next chunk.
-                    // Implementation choice: flush every chunk processing for real-time logs?
-                    // Yes, logs-container updates are better in real-time.
-                    interpreter.flush(); 
+                    // Feed data to VTE parser for log extraction (using original raw data)
+                    parser.advance(&mut log_interpreter, &data);
+                    log_interpreter.flush();
                 }
                 Ok(_) => {
                     tracing::info!("PTY EOF");
@@ -156,133 +151,167 @@ async fn handle_socket(socket: WebSocket, params: ConnectParams) {
         }
     });
 
-struct LogInterpreter {
-    tx_log: mpsc::Sender<ServerLogMsg>,
-    capturing: bool,
-    buffer: String,
-}
-
-impl LogInterpreter {
-    fn new(tx_log: mpsc::Sender<ServerLogMsg>) -> Self {
-        Self {
-            tx_log,
-            capturing: false,
-            buffer: String::new(),
-        }
+    struct AnsiStripper {
+        tx_output: mpsc::Sender<Vec<u8>>,
+        buffer: Vec<u8>,
     }
 
-    fn flush(&mut self) {
-        if !self.buffer.is_empty() {
-            let _ = self.tx_log.blocking_send(ServerLogMsg::LogOutput {
-                data: std::mem::take(&mut self.buffer),
-            });
+    impl AnsiStripper {
+        fn new(tx_output: mpsc::Sender<Vec<u8>>) -> Self {
+            Self {
+                tx_output,
+                buffer: Vec::new(),
+            }
         }
-    }
-}
 
-impl vte::Perform for LogInterpreter {
-    fn print(&mut self, c: char) {
-        if self.capturing {
-            self.buffer.push(c);
-        }
-    }
-
-    fn execute(&mut self, byte: u8) {
-        if self.capturing {
-            // Handle basic control chars that are useful in logs: \n, \t, \r
-            if byte == b'\n' {
-                self.buffer.push('\n');
-            } else if byte == b'\t' {
-                self.buffer.push('\t');
-            } else if byte == b'\r' {
-                 // Ignore CR or handle it? Usually \r\n is processed.
-                 // For logs, simple \n is usually enough. 
-                 // If we push \r, it might mess up some simple log viewers, but let's keep it safe or ignore?
-                 // Let's ignore it to keep logs clean text.
+        fn flush(&mut self) {
+            if !self.buffer.is_empty() {
+                let _ = self
+                    .tx_output
+                    .blocking_send(std::mem::take(&mut self.buffer));
             }
         }
     }
 
-    fn osc_dispatch(&mut self, params: &[&[u8]], _bell_terminated: bool) {
-        if params.is_empty() {
-            return;
+    impl vte::Perform for AnsiStripper {
+        fn print(&mut self, c: char) {
+            let mut b = [0; 4];
+            let s = c.encode_utf8(&mut b);
+            self.buffer.extend_from_slice(s.as_bytes());
         }
 
-        // Check if code is 6973
-        // params[0] like "6973"
-        let code = params[0];
-        if code == b"6973" {
-             // Handle simple command parameter structure (params[1])
-             // Cases: 
-             // 1. 6973;START;USER;HOST;CWD...
-             // 2. 6973;END;0
-            if params.len() > 1 {
-                let cmd = params[1];
-                
-                if cmd == b"START" {
-                    self.capturing = true;
-                    self.buffer.clear(); 
-                    
-                    // Parse Context: params[2]=USER, params[3]=HOST, params[4..]=CWD
-                    let mut user = String::new();
-                    let mut host = String::new();
-                    let mut cwd = String::new();
+        fn execute(&mut self, byte: u8) {
+            // preserve newline, carriage return, tab, and backspace
+            if matches!(byte, b'\n' | b'\r' | b'\t' | 0x08) {
+                self.buffer.push(byte);
+            }
+        }
+    }
 
-                    if params.len() > 2 {
-                        user = String::from_utf8_lossy(params[2]).to_string();
-                    }
-                    if params.len() > 3 {
-                        host = String::from_utf8_lossy(params[3]).to_string();
-                    }
-                    if params.len() > 4 {
-                        // Join remaining parts with ; in case CWD contained semicolons
-                        let parts: Vec<String> = params[4..].iter()
-                            .map(|&p| String::from_utf8_lossy(p).to_string())
-                            .collect();
-                        cwd = parts.join(";");
-                    }
+    struct LogInterpreter {
+        tx_log: mpsc::Sender<ServerLogMsg>,
+        capturing: bool,
+        buffer: String,
+    }
 
-                    let _ = self.tx_log.blocking_send(ServerLogMsg::LogStart {
-                        user,
-                        host,
-                        cwd,
-                    });
+    impl LogInterpreter {
+        fn new(tx_log: mpsc::Sender<ServerLogMsg>) -> Self {
+            Self {
+                tx_log,
+                capturing: false,
+                buffer: String::new(),
+            }
+        }
 
-                } else if cmd.starts_with(b"END") {
-                     // Flush pending buffer first
-                    self.flush();
+        fn flush(&mut self) {
+            if !self.buffer.is_empty() {
+                let _ = self.tx_log.blocking_send(ServerLogMsg::LogOutput {
+                    data: std::mem::take(&mut self.buffer),
+                });
+            }
+        }
+    }
 
-                    let mut exit_code = 0;
-                    
-                    // Try to extract exit code
-                    // Case A: 6973;END;123 (Standard vte split) -> params[1]="END", params[2]="123"
-                    if params.len() > 2 {
-                        if let Ok(s) = std::str::from_utf8(params[2]) {
-                            if let Ok(n) = s.parse::<i32>() {
-                                exit_code = n;
+    impl vte::Perform for LogInterpreter {
+        fn print(&mut self, c: char) {
+            if self.capturing {
+                self.buffer.push(c);
+            }
+        }
+
+        fn execute(&mut self, byte: u8) {
+            if self.capturing {
+                // Handle basic control chars that are useful in logs: \n, \t, \r
+                if byte == b'\n' {
+                    self.buffer.push('\n');
+                } else if byte == b'\t' {
+                    self.buffer.push('\t');
+                } else if byte == b'\r' {
+                    // Ignore CR or handle it? Usually \r\n is processed.
+                    // For logs, simple \n is usually enough.
+                    // If we push \r, it might mess up some simple log viewers, but let's keep it safe or ignore?
+                    // Let's ignore it to keep logs clean text.
+                }
+            }
+        }
+
+        fn osc_dispatch(&mut self, params: &[&[u8]], _bell_terminated: bool) {
+            if params.is_empty() {
+                return;
+            }
+
+            // Check if code is 6973
+            // params[0] like "6973"
+            let code = params[0];
+            if code == b"6973" {
+                // Handle simple command parameter structure (params[1])
+                // Cases:
+                // 1. 6973;START;USER;HOST;CWD...
+                // 2. 6973;END;0
+                if params.len() > 1 {
+                    let cmd = params[1];
+
+                    if cmd == b"START" {
+                        self.capturing = true;
+                        self.buffer.clear();
+
+                        // Parse Context: params[2]=USER, params[3]=HOST, params[4..]=CWD
+                        let mut user = String::new();
+                        let mut host = String::new();
+                        let mut cwd = String::new();
+
+                        if params.len() > 2 {
+                            user = String::from_utf8_lossy(params[2]).to_string();
+                        }
+                        if params.len() > 3 {
+                            host = String::from_utf8_lossy(params[3]).to_string();
+                        }
+                        if params.len() > 4 {
+                            // Join remaining parts with ; in case CWD contained semicolons
+                            let parts: Vec<String> = params[4..]
+                                .iter()
+                                .map(|&p| String::from_utf8_lossy(p).to_string())
+                                .collect();
+                            cwd = parts.join(";");
+                        }
+
+                        let _ =
+                            self.tx_log
+                                .blocking_send(ServerLogMsg::LogStart { user, host, cwd });
+                    } else if cmd.starts_with(b"END") {
+                        // Flush pending buffer first
+                        self.flush();
+
+                        let mut exit_code = 0;
+
+                        // Try to extract exit code
+                        // Case A: 6973;END;123 (Standard vte split) -> params[1]="END", params[2]="123"
+                        if params.len() > 2 {
+                            if let Ok(s) = std::str::from_utf8(params[2]) {
+                                if let Ok(n) = s.parse::<i32>() {
+                                    exit_code = n;
+                                }
                             }
                         }
-                    } 
-                    // Case B: 6973;END;123 (If vte didn't split on second semi-col for some reason, rare)
-                    // Or if script sent it weirdly.
-                    else if cmd.len() > 4 && cmd[3] == b';' {
-                         if let Ok(s) = std::str::from_utf8(&cmd[4..]) {
-                            if let Ok(n) = s.parse::<i32>() {
-                                exit_code = n;
+                        // Case B: 6973;END;123 (If vte didn't split on second semi-col for some reason, rare)
+                        // Or if script sent it weirdly.
+                        else if cmd.len() > 4 && cmd[3] == b';' {
+                            if let Ok(s) = std::str::from_utf8(&cmd[4..]) {
+                                if let Ok(n) = s.parse::<i32>() {
+                                    exit_code = n;
+                                }
                             }
-                         }
-                    }
+                        }
 
-                    let _ = self
-                        .tx_log
-                        .blocking_send(ServerLogMsg::LogEnd { exit_code });
-                    self.capturing = false;
+                        let _ = self
+                            .tx_log
+                            .blocking_send(ServerLogMsg::LogEnd { exit_code });
+                        self.capturing = false;
+                    }
                 }
             }
         }
     }
-}
-
 
     let writer_clone = writer.clone();
     let master_clone = master.clone();
