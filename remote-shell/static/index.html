@@ -1,14 +1,19 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Remote Shell - Integration</title>
     <link rel="stylesheet" href="/static/xterm.css" />
     <style>
-        body { 
-            margin: 0; padding: 0; background-color: #1e1e1e; 
-            height: 100vh; display: flex; flex-direction: column;
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #1e1e1e;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             color: #ccc;
         }
@@ -25,7 +30,11 @@
             overflow: hidden;
             position: relative;
         }
-        #terminal { width: 100%; height: 100%; }
+
+        #terminal {
+            width: 100%;
+            height: 100%;
+        }
 
         #input-container {
             width: 350px;
@@ -44,7 +53,7 @@
             height: 40%;
             background-color: #1e1e1e;
             /* Remove padding from container to use flex items */
-            padding: 0; 
+            padding: 0;
             font-family: 'Consolas', 'Courier New', monospace;
             font-size: 13px;
         }
@@ -52,9 +61,9 @@
         #raw-stream-content {
             flex: 1;
             /* Scroll vertically if content overflows */
-            overflow-y: auto; 
-            white-space: pre-wrap; 
-            margin: 0; 
+            overflow-y: auto;
+            white-space: pre-wrap;
+            margin: 0;
             font-family: monospace;
             font-size: 11px;
             color: #888;
@@ -66,7 +75,7 @@
             overflow-y: auto;
             border-right: 1px solid #333;
         }
-        
+
         #logs-entries {
             /* Container for actual entries inside logs-list */
             display: flex;
@@ -83,17 +92,17 @@
             display: flex;
             flex-direction: column;
         }
-        
+
         #raw-stream-content {
             flex: 1;
             overflow-y: auto;
-            white-space: pre-wrap; 
-            margin:0; 
+            white-space: pre-wrap;
+            margin: 0;
             font-family: monospace;
             font-size: 11px;
             color: #666;
         }
-        
+
         textarea#cmd-input {
             flex: 1;
             background-color: #3c3c3c;
@@ -105,17 +114,24 @@
             margin-bottom: 10px;
             outline: none;
         }
-        textarea#cmd-input:focus { border-color: #007acc; }
+
+        textarea#cmd-input:focus {
+            border-color: #007acc;
+        }
 
         #controls button {
             background-color: #0e639c;
             color: white;
-            border: none; padding: 6px 12px;
+            border: none;
+            padding: 6px 12px;
             cursor: pointer;
             border-radius: 2px;
         }
-        #controls button:hover { background-color: #1177bb; }
-        
+
+        #controls button:hover {
+            background-color: #1177bb;
+        }
+
         .log-entry {
             margin-bottom: 8px;
             border: 1px solid #333;
@@ -123,6 +139,7 @@
             border-radius: 4px;
             overflow: hidden;
         }
+
         .log-header {
             background-color: #333;
             padding: 4px 8px;
@@ -132,12 +149,33 @@
             font-weight: bold;
             align-items: center;
         }
-        .log-cmd { color: #4ec9b0; font-family: monospace; }
-        .log-status { padding: 2px 6px; border-radius: 3px; font-size: 11px; }
-        .log-status.running { background-color: #a8a005; color: black; }
-        .log-status.success { background-color: #388a34; color: white; }
-        .log-status.error { background-color: #c54040; color: white; }
-        
+
+        .log-cmd {
+            color: #4ec9b0;
+            font-family: monospace;
+        }
+
+        .log-status {
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 11px;
+        }
+
+        .log-status.running {
+            background-color: #a8a005;
+            color: black;
+        }
+
+        .log-status.success {
+            background-color: #388a34;
+            color: white;
+        }
+
+        .log-status.error {
+            background-color: #c54040;
+            color: white;
+        }
+
         .log-output {
             padding: 8px;
             white-space: pre-wrap;
@@ -148,6 +186,7 @@
         }
     </style>
 </head>
+
 <body>
     <div id="top-container">
         <div id="terminal-container">
@@ -157,12 +196,14 @@
             <h3>Command Input</h3>
             <div style="margin-bottom: 15px; display: flex; align-items: center; justify-content: space-between;">
                 <label for="shell-select" style="font-size: 14px;">Shell:</label>
-                <select id="shell-select" style="background: #3c3c3c; color: white; border: 1px solid #555; padding: 4px;">
+                <select id="shell-select"
+                    style="background: #3c3c3c; color: white; border: 1px solid #555; padding: 4px;">
                     <option value="bash">bash</option>
                     <option value="zsh">zsh</option>
                     <option value="sh">sh</option>
                 </select>
-                <button id="btn-reconnect" style="background-color: #444; color: white; border: none; padding: 4px 8px; cursor: pointer; font-size: 12px;">Reconnect</button>
+                <button id="btn-reconnect"
+                    style="background-color: #444; color: white; border: none; padding: 4px 8px; cursor: pointer; font-size: 12px;">Reconnect</button>
             </div>
             <textarea id="cmd-input" placeholder="Type command..."></textarea>
             <div id="controls" style="text-align: right;">
@@ -171,18 +212,21 @@
             <p style="font-size:11px; color:#888">Shift+Enter for newline</p>
         </div>
     </div>
-    
+
     <div id="logs-container">
         <div id="logs-list">
-            <div style="padding-bottom:10px; border-bottom:1px solid #333; margin-bottom:10px; font-weight:bold;">Execution Logs (Structured)</div>
+            <div style="padding-bottom:10px; border-bottom:1px solid #333; margin-bottom:10px; font-weight:bold;">
+                Execution Logs (Structured)</div>
             <div id="logs-entries"></div>
         </div>
         <div id="raw-stream-container">
-             <div style="padding-bottom:10px; border-bottom:1px solid #333; margin-bottom:10px; font-weight:bold; display:flex; justify-content:space-between;">
-                 <span>Raw PTY Output (Stripped)</span>
-                 <button id="btn-clear-raw" style="cursor:pointer; background:#333; color:#ccc; border:none; border-radius:3px; font-size:10px; padding:2px 6px;">Clear</button>
-             </div>
-             <pre id="raw-stream-content"></pre>
+            <div
+                style="padding-bottom:10px; border-bottom:1px solid #333; margin-bottom:10px; font-weight:bold; display:flex; justify-content:space-between;">
+                <span>Raw PTY Output (Stripped)</span>
+                <button id="btn-clear-raw"
+                    style="cursor:pointer; background:#333; color:#ccc; border:none; border-radius:3px; font-size:10px; padding:2px 6px;">Clear</button>
+            </div>
+            <pre id="raw-stream-content"></pre>
         </div>
     </div>
 
@@ -199,7 +243,7 @@
         });
         const fitAddon = new FitAddon.FitAddon();
         term.loadAddon(fitAddon);
-        
+
         // Register custom OSC handler for ID 6973
         // This handles: START and END;code (sent by shell integration trap)
         // We only use this to HIDE the markers from the terminal view.
@@ -213,7 +257,7 @@
 
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         let ws;
-        
+
         const input = document.getElementById('cmd-input');
         const btnSend = document.getElementById('btn-send');
         const logsList = document.getElementById('logs-entries');
@@ -222,9 +266,9 @@
 
         const shellSelect = document.getElementById('shell-select');
         const btnReconnect = document.getElementById('btn-reconnect');
-        
+
         btnClearRaw.addEventListener('click', () => {
-             rawStreamContent.textContent = '';
+            rawStreamContent.textContent = '';
         });
 
         function connect() {
@@ -232,11 +276,11 @@
                 ws.close();
                 term.writeln('\r\n\x1b[33mReconnecting...\x1b[0m\r\n');
             }
-            
+
             const shell = shellSelect.value;
             const wsUrl = `${protocol}//${window.location.host}/ws?shell=${shell}`;
             ws = new WebSocket(wsUrl);
-            
+
             ws.onopen = () => {
                 term.write('\x1b[32m[Connected to ' + shell + ']\r\n\x1b[0m');
                 ws.send(JSON.stringify({ type: 'resize', cols: term.cols, rows: term.rows }));
@@ -260,33 +304,33 @@
                     try {
                         // We check if it starts with { to avoid parsing every terminal output
                         if (data.trim().startsWith('{')) {
-                             const msg = JSON.parse(data);
-                             // Check if it has a known type, else treat as raw
-                             if (msg.type === 'logStart' || msg.type === 'logOutput' || msg.type === 'logEnd') {
-                                 handleServerMessage(msg);
-                                 return; 
-                             }
+                            const msg = JSON.parse(data);
+                            // Check if it has a known type, else treat as raw
+                            if (msg.type === 'logStart' || msg.type === 'logOutput' || msg.type === 'logEnd') {
+                                handleServerMessage(msg);
+                                return;
+                            }
                         }
-                    } catch (e) {}
-                    
+                    } catch (e) { }
+
                     // Fallback: treat as raw terminal output
                     // Actually, the server sends raw output as binary or text.
                     // If server sends specific JSON for logs, it's distinct from terminal PTY output?
                     // In current main.rs:
                     // PTY output -> tx_output -> WS (binary/text?)
                     // Log output -> tx_log -> WS (JSON text)
-                    
+
                     // Since raw PTY output can be anything, distinguishing is tricky if both are text.
                     // The server code sends `tx_output` (Vec<u8>) and `tx_log` (ServerLogMsg serialized).
                     // Axum WS sends `Message::Text` for JSON and `Message::Binary` for PTY?
                     // Let's check api.rs loop.
                 }
             };
-            
+
             // We need to set binary type if we expect blobs
             // ws.binaryType = 'blob'; 
             // Default is blob.
-            
+
             // To properly handle this, let's look at how the previous code handled it.
             /* 
             ws.onmessage = (event) => {
@@ -295,41 +339,41 @@
             }
             */
             // The previous code had a specific logic. Let's restore it exactly but wrapped in connect().
-            
+
             ws.onmessage = (event) => {
                 const data = event.data;
                 if (data instanceof Blob) {
                     data.text().then(text => {
-                         term.write(text);
-                         
-                         // Append to raw stream container
-                         const span = document.createElement('span');
-                         span.textContent = text;
-                         rawStreamContent.appendChild(span);
-                         // Auto-scroll
-                         const container = document.getElementById('raw-stream-container');
-                         container.scrollTop = container.scrollHeight;
+                        term.write(text);
+
+                        // Append to raw stream container
+                        const span = document.createElement('span');
+                        span.textContent = text;
+                        rawStreamContent.appendChild(span);
+                        // Auto-scroll
+                        const container = document.getElementById('raw-stream-container');
+                        container.scrollTop = container.scrollHeight;
                     });
                 } else {
                     try {
                         const msg = JSON.parse(data);
                         handleServerMessage(msg);
                     } catch (e) {
-                         // If not JSON, maybe raw text?
-                         // If server sends Message::Text for PTY output, we need to print it.
-                         // But usually PTY output is binary.
-                         console.error("Failed to parse msg:", data, e);
+                        // If not JSON, maybe raw text?
+                        // If server sends Message::Text for PTY output, we need to print it.
+                        // But usually PTY output is binary.
+                        console.error("Failed to parse msg:", data, e);
                     }
                 }
             };
-            
+
             ws.onclose = () => {
                 term.writeln('\r\n\x1b[31m[Disconnected]\x1b[0m');
             };
         }
-        
+
         connect();
-        
+
         btnReconnect.addEventListener('click', connect);
         shellSelect.addEventListener('change', connect);
 
@@ -339,98 +383,98 @@
         let activeCommand = null;
 
         // Note: handleOscMessage is removed as logic moved to server messages.
-        
+
         // Handle terminal input
         term.onData(data => {
             if (ws.readyState === 1) {
                 ws.send(JSON.stringify({ type: 'input', data: data }));
             }
         });
-        
+
         // Handle window resize
         window.addEventListener('resize', () => {
-             fitAddon.fit();
-             if (ws.readyState === 1) {
-                 ws.send(JSON.stringify({ type: 'resize', cols: term.cols, rows: term.rows }));
-             }
+            fitAddon.fit();
+            if (ws.readyState === 1) {
+                ws.send(JSON.stringify({ type: 'resize', cols: term.cols, rows: term.rows }));
+            }
         });
 
         function handleServerMessage(msg) {
-             if (msg.type === 'logStart') {
-                 // A new command has started execution on the backend.
-                 // This might be triggered by our 'Run' button (already in queue)
-                 // OR by manual terminal input (not in queue).
-                 
-                 // If we have a pending command in queue that is waiting to start:
-                 if (activeCommand && !activeCommand.started) {
-                     // This likely matches the queued command
-                     activeCommand.started = true;
-                     activeCommand.statusElement.textContent = "Running...";
-                     activeCommand.statusElement.className = 'log-status running';
-                     updateLogContext(activeCommand, msg);
-                 } 
-                 else if (commandQueue.length > 0) {
-                     // Pick next from queue
-                     activeCommand = commandQueue.shift();
-                     activeCommand.started = true;
-                     activeCommand.statusElement.textContent = "Running...";
-                     activeCommand.statusElement.className = 'log-status running';
-                     updateLogContext(activeCommand, msg);
-                 } 
-                 else {
-                     // Manual input from terminal! Create a new entry gracefully.
-                     // Since we don't know the full command line string from here easily,
-                     // we can use a placeholder or just show the context.
-                     const mockId = Math.random().toString(36).substring(7);
-                     // We'll use "Terminal Session" or the CWD as title if command is unknown?
-                     // Or just leave it blank? Let's use "Interactive Command".
-                     activeCommand = createLogEntry("Interactive Command", mockId);
-                     activeCommand.started = true;
-                     updateLogContext(activeCommand, msg);
-                 }
-                 
-             } else if (msg.type === 'logOutput') {
-                 // We received clean log content
-                 // Ensure we have an active command (created via logStart usually)
-                 if (!activeCommand) {
-                      // Fallback if logStart was missed or order issue: create dummy
-                      const mockId = Math.random().toString(36).substring(7);
-                      activeCommand = createLogEntry("Unknown Command", mockId);
-                      activeCommand.started = true;
-                 }
-                 
-                 activeCommand.buffer += msg.data;
-                 activeCommand.outputElement.textContent = activeCommand.buffer;
-                 // Auto-scroll output
-                 activeCommand.outputElement.scrollTop = activeCommand.outputElement.scrollHeight;
-                 
-             } else if (msg.type === 'logEnd') {
-                 // Command finished
-                 
-                 // If no active command is set (msg logOutput was empty/skipped), 
-                 // grab the next one from queue if available
-                 if (!activeCommand && commandQueue.length > 0) {
-                     activeCommand = commandQueue.shift();
-                     activeCommand.started = true;
-                     activeCommand.statusElement.textContent = "Running..."; 
-                 }
+            if (msg.type === 'logStart') {
+                // A new command has started execution on the backend.
+                // This might be triggered by our 'Run' button (already in queue)
+                // OR by manual terminal input (not in queue).
 
-                 if (activeCommand) {
-                     completeLog(activeCommand, msg.exitCode.toString());
-                     activeCommand = null;
-                 }
-             }
+                // If we have a pending command in queue that is waiting to start:
+                if (activeCommand && !activeCommand.started) {
+                    // This likely matches the queued command
+                    activeCommand.started = true;
+                    activeCommand.statusElement.textContent = "Running...";
+                    activeCommand.statusElement.className = 'log-status running';
+                    updateLogContext(activeCommand, msg);
+                }
+                else if (commandQueue.length > 0) {
+                    // Pick next from queue
+                    activeCommand = commandQueue.shift();
+                    activeCommand.started = true;
+                    activeCommand.statusElement.textContent = "Running...";
+                    activeCommand.statusElement.className = 'log-status running';
+                    updateLogContext(activeCommand, msg);
+                }
+                else {
+                    // Manual input from terminal! Create a new entry gracefully.
+                    // Since we don't know the full command line string from here easily,
+                    // we can use a placeholder or just show the context.
+                    const mockId = Math.random().toString(36).substring(7);
+                    // We'll use "Terminal Session" or the CWD as title if command is unknown?
+                    // Or just leave it blank? Let's use "Interactive Command".
+                    activeCommand = createLogEntry("Interactive Command", mockId);
+                    activeCommand.started = true;
+                    updateLogContext(activeCommand, msg);
+                }
+
+            } else if (msg.type === 'logOutput') {
+                // We received clean log content
+                // Ensure we have an active command (created via logStart usually)
+                if (!activeCommand) {
+                    // Fallback if logStart was missed or order issue: create dummy
+                    const mockId = Math.random().toString(36).substring(7);
+                    activeCommand = createLogEntry("Unknown Command", mockId);
+                    activeCommand.started = true;
+                }
+
+                activeCommand.buffer += msg.data;
+                activeCommand.outputElement.textContent = activeCommand.buffer;
+                // Auto-scroll output
+                activeCommand.outputElement.scrollTop = activeCommand.outputElement.scrollHeight;
+
+            } else if (msg.type === 'logEnd') {
+                // Command finished
+
+                // If no active command is set (msg logOutput was empty/skipped), 
+                // grab the next one from queue if available
+                if (!activeCommand && commandQueue.length > 0) {
+                    activeCommand = commandQueue.shift();
+                    activeCommand.started = true;
+                    activeCommand.statusElement.textContent = "Running...";
+                }
+
+                if (activeCommand) {
+                    completeLog(activeCommand, msg.exitCode.toString());
+                    activeCommand = null;
+                }
+            }
         }
 
-        
+
         function createLogEntry(cmd, id) {
-             const entry = document.createElement('div');
-             entry.className = 'log-entry';
-             
-             const header = document.createElement('div');
-             header.className = 'log-header';
-             // Will populate context info later
-             header.innerHTML = `
+            const entry = document.createElement('div');
+            entry.className = 'log-entry';
+
+            const header = document.createElement('div');
+            header.className = 'log-header';
+            // Will populate context info later
+            header.innerHTML = `
                 <div style="display:flex; flex-direction:column; gap:2px;">
                     <div style="display:flex; align-items:center; gap:8px;">
                         <span class="log-cmd">${escapeHtml(cmd)}</span> 
@@ -439,36 +483,36 @@
                     <div class="log-meta" style="font-size:10px; color:#888; display:none;"></div>
                 </div>
              `;
-             
-             const output = document.createElement('div');
-             output.className = 'log-output';
-             
-             entry.appendChild(header);
-             entry.appendChild(output);
-             
-             logsList.appendChild(entry);
-             // Ensure we scroll the container (first parent with scroll)
-             const container = document.getElementById('logs-list');
-             container.scrollTop = container.scrollHeight; 
-             
-             return {
-                 id: id,
-                 element: entry,
-                 statusElement: header.querySelector('.log-status'),
-                 metaElement: header.querySelector('.log-meta'),
-                 outputElement: output,
-                 buffer: '',
-                 started: false
-             };
+
+            const output = document.createElement('div');
+            output.className = 'log-output';
+
+            entry.appendChild(header);
+            entry.appendChild(output);
+
+            logsList.appendChild(entry);
+            // Ensure we scroll the container (first parent with scroll)
+            const container = document.getElementById('logs-list');
+            container.scrollTop = container.scrollHeight;
+
+            return {
+                id: id,
+                element: entry,
+                statusElement: header.querySelector('.log-status'),
+                metaElement: header.querySelector('.log-meta'),
+                outputElement: output,
+                buffer: '',
+                started: false
+            };
         }
-        
+
         function updateLogContext(commandObj, msg) {
             if (!commandObj.metaElement) return;
             const { user, host, cwd } = msg;
             commandObj.metaElement.style.display = 'block';
             commandObj.metaElement.textContent = `${user}@${host} : ${cwd}`;
         }
-        
+
         function completeLog(commandObj, exitCode) {
             const statusEl = commandObj.statusElement;
             if (exitCode === '0') {
@@ -479,24 +523,24 @@
                 statusEl.textContent = `Error (${exitCode})`;
             }
         }
-        
+
         // Removed processIncomingData and stripOsc/stripAnsi logic as they are server-side now.
-        
+
         function runCommand() {
             const cmd = input.value.trim();
             if (!cmd) return;
             if (ws.readyState !== 1) return;
 
             const cmdId = Math.random().toString(36).substring(7);
-            
+
             // Create UI entry and push to queue
             const entry = createLogEntry(cmd, cmdId);
             commandQueue.push(entry);
-            
+
             // Send raw command to backend (plus newline)
             // No wrapper.
             ws.send(JSON.stringify({ type: 'run', data: cmd, id: cmdId }));
-            
+
             input.value = '';
         }
 
@@ -505,7 +549,7 @@
             div.textContent = text;
             return div.innerHTML;
         }
-        
+
         // Event Listeners for Command Input
         btnSend.addEventListener('click', runCommand);
         input.addEventListener('keydown', (e) => {
@@ -516,4 +560,5 @@
         });
     </script>
 </body>
+
 </html>
