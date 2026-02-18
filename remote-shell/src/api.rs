@@ -99,22 +99,20 @@ async fn handle_socket(socket: WebSocket, params: ConnectParams) {
     thread::spawn(move || {
         let mut buf = [0u8; 2048];
         let mut parser = vte::Parser::new();
-        let mut log_interpreter = LogInterpreter::new(tx_log);
-        let mut output_stripper = AnsiStripper::new(tx_output);
-        let mut output_parser = vte::Parser::new();
+        let mut interpreter = LogInterpreter::new(tx_log);
 
         loop {
             match reader.read(&mut buf) {
                 Ok(n) if n > 0 => {
                     let data = buf[..n].to_vec();
+                    // Send RAW output to frontend terminal
+                    if tx_output.blocking_send(data.clone()).is_err() {
+                        break;
+                    }
 
-                    // Process for stripped output
-                    output_parser.advance(&mut output_stripper, &data);
-                    output_stripper.flush();
-
-                    // Feed data to VTE parser for log extraction (using original raw data)
-                    parser.advance(&mut log_interpreter, &data);
-                    log_interpreter.flush();
+                    // Feed data to VTE parser for log extraction
+                    parser.advance(&mut interpreter, &data);
+                    interpreter.flush(); 
                 }
                 Ok(_) => {
                     tracing::info!("PTY EOF");
@@ -150,43 +148,6 @@ async fn handle_socket(socket: WebSocket, params: ConnectParams) {
             }
         }
     });
-
-    struct AnsiStripper {
-        tx_output: mpsc::Sender<Vec<u8>>,
-        buffer: Vec<u8>,
-    }
-
-    impl AnsiStripper {
-        fn new(tx_output: mpsc::Sender<Vec<u8>>) -> Self {
-            Self {
-                tx_output,
-                buffer: Vec::new(),
-            }
-        }
-
-        fn flush(&mut self) {
-            if !self.buffer.is_empty() {
-                let _ = self
-                    .tx_output
-                    .blocking_send(std::mem::take(&mut self.buffer));
-            }
-        }
-    }
-
-    impl vte::Perform for AnsiStripper {
-        fn print(&mut self, c: char) {
-            let mut b = [0; 4];
-            let s = c.encode_utf8(&mut b);
-            self.buffer.extend_from_slice(s.as_bytes());
-        }
-
-        fn execute(&mut self, byte: u8) {
-            // preserve newline, carriage return, tab, and backspace
-            if matches!(byte, b'\n' | b'\r' | b'\t' | 0x08) {
-                self.buffer.push(byte);
-            }
-        }
-    }
 
     struct LogInterpreter {
         tx_log: mpsc::Sender<ServerLogMsg>,
