@@ -205,6 +205,12 @@
                 <button id="btn-reconnect"
                     style="background-color: #444; color: white; border: none; padding: 4px 8px; cursor: pointer; font-size: 12px;">Reconnect</button>
             </div>
+            <div style="margin-bottom: 10px; font-size: 12px;">
+                <label style="display: flex; align-items: center; cursor: pointer;">
+                    <input type="checkbox" id="chk-term-input" style="margin-right: 6px;">
+                    Enable Terminal Input
+                </label>
+            </div>
             <textarea id="cmd-input" placeholder="Type command..."></textarea>
             <div id="controls" style="text-align: right;">
                 <button id="btn-send">Run</button>
@@ -266,6 +272,12 @@
 
         const shellSelect = document.getElementById('shell-select');
         const btnReconnect = document.getElementById('btn-reconnect');
+        const chkTermInput = document.getElementById('chk-term-input');
+
+        // Initial state logic for terminal input
+        chkTermInput.addEventListener('change', (e) => {
+            term.options.disableStdin = !e.target.checked;
+        });
 
         btnClearRaw.addEventListener('click', () => {
             rawStreamContent.textContent = '';
