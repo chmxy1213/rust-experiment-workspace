@@ -7,15 +7,21 @@ use std::{
 };
 
 use axum::{
-    extract::ws::{Message, WebSocket, WebSocketUpgrade},
+    extract::{Query, ws::{Message, WebSocket, WebSocketUpgrade}},
     response::{Html, IntoResponse},
 };
 use futures::{sink::SinkExt, stream::StreamExt};
 use portable_pty::{CommandBuilder, NativePtySystem, PtySize, PtySystem};
 use tokio::sync::mpsc;
+use serde::Deserialize;
 
 
 use crate::{ClientMsg, ServerLogMsg};
+
+#[derive(Deserialize)]
+pub struct ConnectParams {
+    pub shell: Option<String>,
+}
 
 pub async fn index_handler() -> Html<&'static str> {
     // Force recompilation when index.html changes by including bytes, though include_str matches too.
@@ -23,11 +29,14 @@ pub async fn index_handler() -> Html<&'static str> {
     Html(include_str!("../static/index.html"))
 }
 
-pub async fn ws_handler(ws: WebSocketUpgrade) -> impl IntoResponse {
-    ws.on_upgrade(handle_socket)
+pub async fn ws_handler(
+    Query(params): Query<ConnectParams>,
+    ws: WebSocketUpgrade,
+) -> impl IntoResponse {
+    ws.on_upgrade(move |socket| handle_socket(socket, params))
 }
 
-async fn handle_socket(socket: WebSocket) {
+async fn handle_socket(socket: WebSocket, params: ConnectParams) {
     tracing::info!("New WebSocket connection established");
     let pty_system = NativePtySystem::default();
 
@@ -40,7 +49,8 @@ async fn handle_socket(socket: WebSocket) {
         })
         .expect("Failed to create PTY");
 
-    let shell = std::env::var("SHELL").unwrap_or_else(|_| "bash".to_string());
+    let default_shell = std::env::var("SHELL").unwrap_or_else(|_| "bash".to_string());
+    let shell = params.shell.unwrap_or(default_shell);
     let is_bash = shell.ends_with("bash");
     let is_zsh = shell.ends_with("zsh");
 

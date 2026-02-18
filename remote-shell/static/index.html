@@ -108,6 +108,15 @@
         </div>
         <div id="input-container">
             <h3>Command Input</h3>
+            <div style="margin-bottom: 15px; display: flex; align-items: center; justify-content: space-between;">
+                <label for="shell-select" style="font-size: 14px;">Shell:</label>
+                <select id="shell-select" style="background: #3c3c3c; color: white; border: 1px solid #555; padding: 4px;">
+                    <option value="bash">bash</option>
+                    <option value="zsh">zsh</option>
+                    <option value="sh">sh</option>
+                </select>
+                <button id="btn-reconnect" style="background-color: #444; color: white; border: none; padding: 4px 8px; cursor: pointer; font-size: 12px;">Reconnect</button>
+            </div>
             <textarea id="cmd-input" placeholder="Type command..."></textarea>
             <div id="controls" style="text-align: right;">
                 <button id="btn-send">Run</button>
@@ -146,12 +155,111 @@
         fitAddon.fit();
 
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        const wsUrl = `${protocol}//${window.location.host}/ws`;
-        const ws = new WebSocket(wsUrl);
+        let ws;
         
         const input = document.getElementById('cmd-input');
         const btnSend = document.getElementById('btn-send');
         const logsList = document.getElementById('logs-list');
+        const shellSelect = document.getElementById('shell-select');
+        const btnReconnect = document.getElementById('btn-reconnect');
+
+        function connect() {
+            if (ws) {
+                ws.close();
+                term.writeln('\r\n\x1b[33mReconnecting...\x1b[0m\r\n');
+            }
+            
+            const shell = shellSelect.value;
+            const wsUrl = `${protocol}//${window.location.host}/ws?shell=${shell}`;
+            ws = new WebSocket(wsUrl);
+            
+            ws.onopen = () => {
+                term.write('\x1b[32m[Connected to ' + shell + ']\r\n\x1b[0m');
+                ws.send(JSON.stringify({ type: 'resize', cols: term.cols, rows: term.rows }));
+            };
+
+            ws.onmessage = (event) => {
+                // ... (Logic copied from below) ...
+                const data = event.data;
+                // If it looks like a blob, its likely binary
+                if (data instanceof Blob) {
+                    // However, we send text frames for pty output usually from axum as Vec<u8> which becomes Blob in JS if binaryType is blob
+                    // But if we send text, it is string.
+                    // Let's coerce.
+                    const reader = new FileReader();
+                    reader.onload = () => {
+                        term.write(reader.result);
+                    };
+                    reader.readAsText(data);
+                } else if (typeof data === 'string') {
+                    // Try to parse as JSON control message
+                    try {
+                        // We check if it starts with { to avoid parsing every terminal output
+                        if (data.trim().startsWith('{')) {
+                             const msg = JSON.parse(data);
+                             // Check if it has a known type, else treat as raw
+                             if (msg.type === 'logStart' || msg.type === 'logOutput' || msg.type === 'logEnd') {
+                                 handleServerMessage(msg);
+                                 return; 
+                             }
+                        }
+                    } catch (e) {}
+                    
+                    // Fallback: treat as raw terminal output
+                    // Actually, the server sends raw output as binary or text.
+                    // If server sends specific JSON for logs, it's distinct from terminal PTY output?
+                    // In current main.rs:
+                    // PTY output -> tx_output -> WS (binary/text?)
+                    // Log output -> tx_log -> WS (JSON text)
+                    
+                    // Since raw PTY output can be anything, distinguishing is tricky if both are text.
+                    // The server code sends `tx_output` (Vec<u8>) and `tx_log` (ServerLogMsg serialized).
+                    // Axum WS sends `Message::Text` for JSON and `Message::Binary` for PTY?
+                    // Let's check api.rs loop.
+                }
+            };
+            
+            // We need to set binary type if we expect blobs
+            // ws.binaryType = 'blob'; 
+            // Default is blob.
+            
+            // To properly handle this, let's look at how the previous code handled it.
+            /* 
+            ws.onmessage = (event) => {
+                const data = event.data;
+                if (data instanceof Blob) { ... } else { ... }
+            }
+            */
+            // The previous code had a specific logic. Let's restore it exactly but wrapped in connect().
+            
+            ws.onmessage = (event) => {
+                const data = event.data;
+                if (data instanceof Blob) {
+                    data.text().then(text => {
+                         term.write(text);
+                    });
+                } else {
+                    try {
+                        const msg = JSON.parse(data);
+                        handleServerMessage(msg);
+                    } catch (e) {
+                         // If not JSON, maybe raw text?
+                         // If server sends Message::Text for PTY output, we need to print it.
+                         // But usually PTY output is binary.
+                         console.error("Failed to parse msg:", data, e);
+                    }
+                }
+            };
+            
+            ws.onclose = () => {
+                term.writeln('\r\n\x1b[31m[Disconnected]\x1b[0m');
+            };
+        }
+        
+        connect();
+        
+        btnReconnect.addEventListener('click', connect);
+        shellSelect.addEventListener('change', connect);
 
         // Queue of commands waiting for execution START signal
         // We assume FIFO: Use clicks Run -> Queue.push() -> Server LogOutput -> Queue.shift matching
@@ -159,29 +267,6 @@
         let activeCommand = null;
 
         // Note: handleOscMessage is removed as logic moved to server messages.
-
-        ws.onopen = () => {
-            term.write('\x1b[32m[Connected]\r\n\x1b[0m');
-            ws.send(JSON.stringify({ type: 'resize', cols: term.cols, rows: term.rows }));
-        };
-
-        ws.onmessage = (event) => {
-            const data = event.data;
-            if (data instanceof Blob) {
-                // Binary data for terminal
-                data.text().then(text => {
-                     term.write(text);
-                });
-            } else {
-                // Text data (JSON controls/logs)
-                try {
-                    const msg = JSON.parse(data);
-                    handleServerMessage(msg);
-                } catch (e) {
-                    console.error("Failed to parse msg:", data);
-                }
-            }
-        };
         
         // Handle terminal input
         term.onData(data => {
