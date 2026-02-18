@@ -194,7 +194,8 @@
             cursorBlink: true,
             fontSize: 14,
             theme: { background: '#000000' },
-            allowProposedApi: true
+            allowProposedApi: true,
+            disableStdin: true // Disable user input in the terminal
         });
         const fitAddon = new FitAddon.FitAddon();
         term.loadAddon(fitAddon);
