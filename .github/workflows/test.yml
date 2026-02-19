@@ -1,0 +1,38 @@
+name: Rust CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  test-windows:
+    name: Test on Windows
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      # Setup Rust toolchain
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+      
+      # Optional: Install Clink if we want to test CMD integration in future
+      # (Currently test only covers pwsh) 
+      # - name: Install Clink
+      #   run: choco install clink-maintained -y --force
+
+      # Build all workspaces
+      - name: Build
+        run: cargo build --verbose
+
+      # Run tests
+      # This will pick up `remote-shell/tests/shell_integration_test.rs`
+      # and since it is `#[cfg(windows)]`, it will execute on this runner.
+      - name: Run tests
+        run: cargo test --verbose --workspace
