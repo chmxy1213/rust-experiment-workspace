@@ -14,7 +14,7 @@ use axum::{
     response::{Html, IntoResponse},
 };
 use futures::{sink::SinkExt, stream::StreamExt};
-use portable_pty::{CommandBuilder, NativePtySystem, PtySize, PtySystem};
+use portable_pty::{NativePtySystem, PtySize, PtySystem};
 use serde::Deserialize;
 use tokio::sync::mpsc;
 
@@ -55,38 +55,45 @@ async fn handle_socket(socket: WebSocket, params: ConnectParams) {
     let shell = params.shell.unwrap_or(default_shell);
     let is_bash = shell.ends_with("bash");
     let is_zsh = shell.ends_with("zsh");
+    let is_pwsh = shell.ends_with("pwsh") || shell.ends_with("powershell");
 
-    let mut cmd = CommandBuilder::new(&shell);
+    let mut cmd_builder = portable_pty::CommandBuilder::new(&shell);
 
     if is_bash {
-        cmd.args(&["--rcfile", "static/shell-integration.bash"]);
+        cmd_builder.args(&["--rcfile", "static/shell-integration.bash"]);
+    }
+    // For pwsh, we often need -NoExit if we pass a file, but here we just spawn shell
+    // and rely on injection via stdin like zsh to avoid path complexity
+    if is_pwsh {
+        cmd_builder.args(&["-NoLogo", "-NoExit"]);
     }
 
-    cmd.cwd(std::env::current_dir().unwrap());
-    cmd.env("TERM", "xterm-256color");
+    cmd_builder.cwd(std::env::current_dir().unwrap());
+    cmd_builder.env("TERM", "xterm-256color");
 
     let _child = pair
         .slave
-        .spawn_command(cmd)
+        .spawn_command(cmd_builder)
         .expect("Failed to spawn shell");
 
     let master = pair.master;
     let mut reader = master.try_clone_reader().expect("Failed to clone reader");
     let writer = master.take_writer().expect("Failed to take writer");
 
-    // We wrap writer in a Mutex to use it in the loop (which is technically blocking, but fast for buffer write)
-    // Using Arc<Mutex<...>> for thread safety if we were to share it, here we clone for the loop.
     let writer = Arc::new(Mutex::new(writer));
     let master = Arc::new(Mutex::new(master));
 
-    // Initialize Shell Integration for Zsh (since we can't use --rcfile)
+    // Inject scripts for shells that don't support --rcfile easily or where we prefer dynamic loading
     if is_zsh {
         if let Ok(mut w) = writer.lock() {
-            // Source the integration script
-            // We add a newline to ensure it executes
-            // To hide the command itself from history/view, usually we can't easily do it via injection
-            // without "space" prefix (if configured) or just accept it prints once.
             let init_cmd = "source static/shell-integration.zsh\n";
+            let _ = w.write_all(init_cmd.as_bytes());
+            let _ = w.flush();
+        }
+    } else if is_pwsh {
+        if let Ok(mut w) = writer.lock() {
+            // PowerShell sourcing
+            let init_cmd = ". ./static/shell-integration.ps1\n";
             let _ = w.write_all(init_cmd.as_bytes());
             let _ = w.flush();
         }
@@ -112,7 +119,7 @@ async fn handle_socket(socket: WebSocket, params: ConnectParams) {
 
                     // Feed data to VTE parser for log extraction
                     parser.advance(&mut interpreter, &data);
-                    interpreter.flush(); 
+                    interpreter.flush();
                 }
                 Ok(_) => {
                     tracing::info!("PTY EOF");
