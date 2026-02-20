@@ -24,13 +24,12 @@ fn test_pwsh_integration() {
         })
         .expect("Failed to create PTY");
 
+    // We don't want to use "-Command -" because portable-pty already sets up a PTY 
+    // which acts as a valid stdin/stdout device.
     let mut cmd_builder = CommandBuilder::new("pwsh");
-    cmd_builder.args(&["-NoLogo", "-NoExit", "-Command", "-"]); // interactive mode reading from stdin
-
-    let mut child = pair
-        .slave
-        .spawn_command(cmd_builder)
-        .expect("Failed to spawn pwsh");
+    cmd_builder.args(&["-NoLogo", "-NoExit"]); 
+    
+    let mut child = pair.slave.spawn_command(cmd_builder).expect("Failed to spawn pwsh");
 
     let mut writer = pair.master.take_writer().expect("Failed to take writer");
     let mut reader = pair
