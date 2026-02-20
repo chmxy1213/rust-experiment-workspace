@@ -22,12 +22,6 @@ jobs:
         with:
           toolchain: stable
       
-      # Ensure PowerShell (pwsh) is available
-      # GitHub runners usually have 'pwsh' but sometimes only 'powershell'.
-      # Just in case, try installing/updating it via chocolatey
-      - name: Ensure PowerShell Core Installed
-        run: choco install powershell-core -y --force --no-progress || choco upgrade powershell-core -y --ignore-unfound --no-progress
-      
       # Build all workspaces
       - name: Build
         run: cargo build --verbose
