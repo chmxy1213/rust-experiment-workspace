@@ -29,7 +29,8 @@ jobs:
             # Add Clink to PATH for the current session since Choco only updates it for new sessions
             $env:Path = "C:\Program Files (x86)\clink;" + $env:Path
             # Enable clink for cmd globally (autorun)
-            & "C:\Program Files (x86)\clink\clink.exe" autorun install
+            # & "C:\Program Files (x86)\clink\clink.exe" autorun install
+            clink autorun install
 
       # Build all workspaces
       - name: Build
