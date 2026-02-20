@@ -21,6 +21,13 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: stable
+
+      - name: Install Clink
+        if: runner.os == 'Windows'
+        run: |
+            choco install clink-maintained -y --force
+            # Enable clink for cmd globally (autorun)
+            clink autorun install
       
       # Build all workspaces
       - name: Build
