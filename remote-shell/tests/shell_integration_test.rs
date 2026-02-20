@@ -57,12 +57,19 @@ fn test_pwsh_integration() {
     });
 
     // 1. Inject the integration script
-    // We read the actual file content to simulate exactly what the app does,
-    // or we can just send the content if we trust the file is there.
-    // In a test, better to rely on what's committed. context: the test runs from root usually.
-    let script_path = "static/shell-integration.ps1";
-    let script_content =
-        std::fs::read_to_string(script_path).expect("Could not read integration script");
+    // We construct the path relative to the crate root to ensure it works in CI and locally
+    // regardless of where `cargo test` is invoked from.
+    let manifest_dir = std::env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR not set");
+    let script_path = std::path::PathBuf::from(manifest_dir).join("static/shell-integration.ps1");
+
+    // Check if file exists to give a better error message
+    if !script_path.exists() {
+        panic!("Integration script not found at: {:?}", script_path);
+    }
+
+    // We don't necessarily need to read content if we just source it by path,
+    // but reading it helps debugging if specific content is needed.
+    // let script_content = std::fs::read_to_string(&script_path).expect("Could not read integration script");
 
     // Send script to PTY
     // We wrap it in a block or invoke-expression to ensure it runs
@@ -76,8 +83,8 @@ fn test_pwsh_integration() {
     // let init_cmd = ". ./static/shell-integration.ps1\n";
     // We should try to use the absolute path of the test runtime.
 
-    let abs_path = std::fs::canonicalize(script_path).expect("Failed to canonicalize path");
-    let load_cmd = format!(". '{}'\r\n", abs_path.to_string_lossy());
+    // Note: script_path is already absolute because CARGO_MANIFEST_DIR is absolute.
+    let load_cmd = format!(". '{}'\r\n", script_path.to_string_lossy());
     writer.write_all(load_cmd.as_bytes()).unwrap();
 
     // Give it time to load
