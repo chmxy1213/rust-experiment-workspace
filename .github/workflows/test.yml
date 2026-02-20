@@ -26,9 +26,11 @@ jobs:
         if: runner.os == 'Windows'
         run: |
             choco install clink-maintained -y --force
+            # Add Clink to PATH for the current session since Choco only updates it for new sessions
+            $env:Path = "C:\Program Files (x86)\clink;" + $env:Path
             # Enable clink for cmd globally (autorun)
-            clink autorun install
-      
+            & "C:\Program Files (x86)\clink\clink.exe" autorun install
+
       # Build all workspaces
       - name: Build
         run: cargo build --verbose
