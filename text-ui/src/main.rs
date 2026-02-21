@@ -19,7 +19,7 @@ struct Args {
 
 fn main() {
     let args = Args::parse();
-    
+
     // Select the font data based on the argument
     let font_data = match args.font.as_str() {
         "standard" => include_str!("../fonts/standard.flf"),
@@ -27,10 +27,10 @@ fn main() {
         "small" => include_str!("../fonts/small.flf"),
         _ => include_str!("../fonts/slant.flf"),
     };
-    
+
     // Parse the font
     let font = FIGfont::from_content(font_data).expect("Failed to parse font");
-    
+
     // Convert text to ASCII art
     match font.convert(&args.text) {
         Some(figure) => {
@@ -54,7 +54,7 @@ fn main() {
                     }
                 }
             }
-        },
+        }
         None => eprintln!("Failed to convert text"),
     }
 }
