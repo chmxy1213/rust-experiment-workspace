@@ -1,3 +1,9 @@
 [workspace]
 resolver = "2"
-members = ["shell-prompt", "text-ui", "pty-bash-hook", "remote-shell", "helicopter-flight-control"]
+members = [
+    "shell-prompt",
+    "text-ui",
+    "pty-bash-hook",
+    "remote-shell",
+    "helicopter-flight-control",
+]
