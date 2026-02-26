@@ -1,0 +1,81 @@
+name: Cross-Platform Build
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    name: Build for ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          # Linux x86-64 musl (using cargo-zigbuild)
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-musl
+            use_zigbuild: true
+            use_xwin: false
+            rust_version: stable
+            name_suffix: ""
+
+          # Windows x86-64 MSVC (using cargo-xwin)
+          - os: ubuntu-latest
+            target: x86_64-pc-windows-msvc
+            use_zigbuild: false
+            use_xwin: true
+            rust_version: stable
+            name_suffix: ""
+
+          # Windows 7 x86-64 MSVC (using cargo-xwin with Rust 1.77.2)
+          # Rust 1.78+ dropped support for Windows 7, so we pin to 1.77.2
+          - os: ubuntu-latest
+            target: x86_64-pc-windows-msvc
+            use_zigbuild: false
+            use_xwin: true
+            rust_version: 1.77.2
+            name_suffix: -win7
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ matrix.rust_version }}
+          targets: ${{ matrix.target }}
+          components: llvm-tools-preview
+
+      - name: Install Zig
+        if: matrix.use_zigbuild
+        uses: goto-bus-stop/setup-zig@v2
+        with:
+          version: 0.13.0
+
+      - name: Install cargo-zigbuild
+        if: matrix.use_zigbuild
+        run: cargo install cargo-zigbuild
+
+      - name: Install cargo-xwin
+        if: matrix.use_xwin
+        run: cargo install cargo-xwin
+
+      - name: Build with cargo-zigbuild
+        if: matrix.use_zigbuild
+        run: cargo zigbuild --target ${{ matrix.target }} --release
+
+      - name: Build with cargo-xwin
+        if: matrix.use_xwin
+        run: |
+          mkdir -p .cargo
+          echo '[target.x86_64-pc-windows-msvc]' > .cargo/config.toml
+          echo 'rustflags = ["-C", "target-feature=+crt-static"]' >> .cargo/config.toml
+          cargo xwin build --target ${{ matrix.target }} --release
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: binaries-${{ matrix.target }}${{ matrix.name_suffix }}
+          path: target/${{ matrix.target }}/release/
