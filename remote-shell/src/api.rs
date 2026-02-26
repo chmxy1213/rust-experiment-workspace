@@ -353,7 +353,12 @@ async fn handle_socket(socket: WebSocket, params: ConnectParams) {
                             if let Ok(mut w) = writer_clone.lock() {
                                 // Just send the raw command. The shell integration (trap) will handle markers.
                                 // We add a newline to ensure execution.
-                                let cmd_str = format!("{}\n", data);
+                                // For powershell, we might need \r\n
+                                let cmd_str = if shell.ends_with("pwsh") || shell.ends_with("powershell") {
+                                    format!("{}\r\n", data)
+                                } else {
+                                    format!("{}\n", data)
+                                };
                                 let _ = w.write_all(cmd_str.as_bytes());
                                 let _ = w.flush();
                             }
