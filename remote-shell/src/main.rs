@@ -1,10 +1,11 @@
 use axum::{routing::get, Router};
 use serde::{Deserialize, Serialize};
-use tower_http::services::ServeDir;
 
 use crate::api::{index_handler, ws_handler};
+use crate::static_files::static_handler;
 
 mod api;
+mod static_files;
 
 #[derive(Serialize)]
 #[serde(tag = "type", rename_all = "camelCase")]
@@ -49,7 +50,7 @@ async fn main() {
     let app = Router::new()
         .route("/", get(index_handler))
         .route("/ws", get(ws_handler))
-        .nest_service("/static", ServeDir::new("static"));
+        .route("/static/*file", get(static_handler));
 
     let addr = "0.0.0.0:3000";
     tracing::info!("Listening on http://{}", addr);

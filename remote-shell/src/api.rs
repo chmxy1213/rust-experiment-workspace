@@ -18,6 +18,7 @@ use portable_pty::{NativePtySystem, PtySize, PtySystem};
 use serde::Deserialize;
 use tokio::sync::mpsc;
 
+use crate::static_files::Asset;
 use crate::{ClientMsg, ServerLogMsg};
 
 #[derive(Deserialize)]
@@ -25,10 +26,12 @@ pub struct ConnectParams {
     pub shell: Option<String>,
 }
 
-pub async fn index_handler() -> Html<&'static str> {
-    // Force recompilation when index.html changes by including bytes, though include_str matches too.
-    // We add a cache buster comment implicitly by changing main.rs
-    Html(include_str!("../static/index.html"))
+pub async fn index_handler() -> Html<String> {
+    if let Some(content) = Asset::get("index.html") {
+        Html(String::from_utf8_lossy(&content.data).to_string())
+    } else {
+        Html("<h1>404 Not Found</h1>".to_string())
+    }
 }
 
 pub async fn ws_handler(
@@ -57,10 +60,40 @@ async fn handle_socket(socket: WebSocket, params: ConnectParams) {
     let is_zsh = shell.ends_with("zsh");
     let is_pwsh = shell.ends_with("pwsh") || shell.ends_with("powershell");
 
+    // Extract shell integration script to a temporary file
+    let mut temp_script_path = None;
+    let script_name = if is_bash {
+        Some("shell-integration.bash")
+    } else if is_zsh {
+        Some("shell-integration.zsh")
+    } else if is_pwsh {
+        Some("shell-integration.ps1")
+    } else {
+        None
+    };
+
+    if let Some(name) = script_name {
+        if let Some(content) = Asset::get(name) {
+            let mut temp_file = tempfile::Builder::new()
+                .prefix("shell-integration-")
+                .suffix(if is_pwsh { ".ps1" } else { "" })
+                .tempfile()
+                .expect("Failed to create temp file");
+            temp_file
+                .write_all(&content.data)
+                .expect("Failed to write temp file");
+            let path = temp_file.into_temp_path();
+            let path_str = path.to_string_lossy().to_string();
+            temp_script_path = Some((path, path_str));
+        }
+    }
+
     let mut cmd_builder = portable_pty::CommandBuilder::new(&shell);
 
     if is_bash {
-        cmd_builder.args(&["--rcfile", "static/shell-integration.bash"]);
+        if let Some((_, ref path_str)) = temp_script_path {
+            cmd_builder.args(&["--rcfile", path_str]);
+        }
     }
     // For pwsh, we often need -NoExit if we pass a file, but here we just spawn shell
     // and rely on injection via stdin like zsh to avoid path complexity
@@ -86,16 +119,20 @@ async fn handle_socket(socket: WebSocket, params: ConnectParams) {
     // Inject scripts for shells that don't support --rcfile easily or where we prefer dynamic loading
     if is_zsh {
         if let Ok(mut w) = writer.lock() {
-            let init_cmd = "source static/shell-integration.zsh\n";
-            let _ = w.write_all(init_cmd.as_bytes());
-            let _ = w.flush();
+            if let Some((_, ref path_str)) = temp_script_path {
+                let init_cmd = format!("source {}\n", path_str);
+                let _ = w.write_all(init_cmd.as_bytes());
+                let _ = w.flush();
+            }
         }
     } else if is_pwsh {
         if let Ok(mut w) = writer.lock() {
             // PowerShell sourcing
-            let init_cmd = ". ./static/shell-integration.ps1\n";
-            let _ = w.write_all(init_cmd.as_bytes());
-            let _ = w.flush();
+            if let Some((_, ref path_str)) = temp_script_path {
+                let init_cmd = format!(". {}\n", path_str);
+                let _ = w.write_all(init_cmd.as_bytes());
+                let _ = w.flush();
+            }
         }
     }
 
