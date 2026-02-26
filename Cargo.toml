@@ -3,7 +3,9 @@ resolver = "2"
 members = [
     "shell-prompt",
     "text-ui",
-    "pty-bash-hook",
     "remote-shell",
     "helicopter-flight-control",
+]
+exclude = [
+    "pty-bash-hook"
 ]
