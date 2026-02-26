@@ -104,10 +104,25 @@ async fn handle_socket(socket: WebSocket, params: ConnectParams) {
     cmd_builder.cwd(std::env::current_dir().unwrap());
     cmd_builder.env("TERM", "xterm-256color");
 
-    let _child = pair
-        .slave
-        .spawn_command(cmd_builder)
-        .expect("Failed to spawn shell");
+    let mut child_result = pair.slave.spawn_command(cmd_builder);
+
+    // Fallback for pwsh -> powershell on Windows
+    if child_result.is_err() && shell == "pwsh" && cfg!(target_os = "windows") {
+        tracing::warn!("Failed to spawn pwsh, falling back to powershell");
+        let mut fallback_cmd = portable_pty::CommandBuilder::new("powershell");
+        fallback_cmd.args(&["-NoLogo", "-NoExit"]);
+        fallback_cmd.cwd(std::env::current_dir().unwrap());
+        fallback_cmd.env("TERM", "xterm-256color");
+        child_result = pair.slave.spawn_command(fallback_cmd);
+    }
+
+    let _child = match child_result {
+        Ok(child) => child,
+        Err(e) => {
+            tracing::error!("Failed to spawn shell: {}", e);
+            return;
+        }
+    };
 
     let master = pair.master;
     let mut reader = master.try_clone_reader().expect("Failed to clone reader");
