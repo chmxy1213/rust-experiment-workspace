@@ -4,7 +4,7 @@ members = [
     "shell-prompt",
     "text-ui",
     "remote-shell",
-    "helicopter-flight-control", "loki-demo",
+    "helicopter-flight-control", "loki-demo", "log-server",
 ]
 exclude = [
     "pty-bash-hook"
