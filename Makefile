@@ -21,9 +21,8 @@ windows:
 # To build for Windows 7, we use Rust 1.77.2.
 windows7:
 	@echo "Building for Windows 7 x86-64 (MSVC) using Rust 1.77.2..."
-	RUSTUP_DIST_SERVER="https://rsproxy.cn" RUSTUP_UPDATE_ROOT="https://rsproxy.cn/rustup" rustup toolchain install 1.77.2
-	RUSTUP_DIST_SERVER="https://rsproxy.cn" RUSTUP_UPDATE_ROOT="https://rsproxy.cn/rustup" rustup component add llvm-tools-preview --toolchain 1.77.2
-	cargo +1.77.2 xwin build --target x86_64-pc-windows-msvc --release
+	RUSTUP_DIST_SERVER="https://rsproxy.cn" RUSTUP_UPDATE_ROOT="https://rsproxy.cn/rustup" rustup component add llvm-tools-preview --toolchain nightly
+	cargo +nightly xwin build --target x86_64-win7-windows-msvc --release -Z build-std
 
 # Clean build artifacts
 clean:
