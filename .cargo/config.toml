@@ -1,2 +1,7 @@
 [target.x86_64-pc-windows-msvc]
+# Fix: runtime error: 无法启动此程序，因为计算机中丢失 VCRUNTIME140.dll
+rustflags = ["-C", "target-feature=+crt-static"]
+
+[target.x86_64-win7-windows-msvc]
+# Fix: runtime error: 无法启动此程序，因为计算机中丢失 VCRUNTIME140.dll
 rustflags = ["-C", "target-feature=+crt-static"]
