@@ -9,6 +9,7 @@
 //! [`WinPTY`]: https://github.com/rprichard/winpty
 //! [`ConPTY`]: https://docs.microsoft.com/en-us/windows/console/creating-a-pseudoconsole-session
 
+#![cfg(windows)]
 
 #[macro_use]
 extern crate enum_primitive_derive;
