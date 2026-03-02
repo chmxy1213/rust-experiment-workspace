@@ -1,0 +1,88 @@
+[package]
+name = "winpty-rs"
+version = "1.0.6-dev"
+edition = "2021"
+links = "winpty"
+license = "MIT OR Apache-2.0"
+description = "Create and spawn processes inside a pseudoterminal in Windows"
+homepage = "https://github.com/andfoy/winpty-rs"
+readme = "README.md"
+repository = "https://github.com/andfoy/winpty-rs"
+keywords = ["windows", "pty", "winpty", "conpty", "pseudoterminal"]
+
+[dependencies]
+enum-primitive-derive = "0.3.0"
+num-traits = "0.2"
+bitflags = "2.3"
+crossbeam-channel = "0.5.15"
+
+[build-dependencies]
+which = "8.0.0"
+glob = "0.3.2"
+enum-primitive-derive = "0.3.0"
+num-traits = "0.2"
+
+[dependencies.windows-strings]
+version = "0.5"
+
+[dependencies.windows-link]
+version = "0.2"
+
+[dependencies.windows-core]
+version = "0.59.0"
+
+[dependencies.windows]
+version = "0.59.0"
+features = [
+    "Win32_Foundation",
+    "Win32_Storage_FileSystem",
+    "Win32_System_IO",
+    "Win32_System_Pipes",
+    "Win32_System_Threading",
+    "Win32_Security",
+    "Win32_Globalization",
+    # ConPTY-specific
+    "Win32_System_Console",
+    "Win32_UI_WindowsAndMessaging",
+    "Wdk_Foundation",
+    "Wdk_Storage_FileSystem",
+    "Win32_System_WindowsProgramming"
+]
+
+[build-dependencies.windows]
+version = "0.59.0"
+features = [
+    "Win32_Foundation",
+    "Win32_System_LibraryLoader"
+]
+
+[build-dependencies.windows-bindgen]
+version = "0.64"
+
+[dev-dependencies]
+regex = "1.5"
+
+[package.metadata.docs.rs]
+default-target = "x86_64-pc-windows-gnu"
+targets = ["x86_64-pc-windows-gnu"]
+
+[features]
+conpty = []
+winpty = []
+conpty_local = []
+winpty_example = ["winpty"]
+conpty_example = ["conpty"]
+
+[lib]
+name = "winptyrs"
+path = "src/lib.rs"
+
+[[bin]]
+name = "winpty_example"
+path = "src/examples/winpty.rs"
+required-features = ["winpty_example"]
+
+[[bin]]
+name = "conpty_example"
+path = "src/examples/conpty.rs"
+required-features = ["conpty_example"]

@@ -1,0 +1,45 @@
+
+name: Windows release
+
+on:
+    release:
+      types:
+        - created
+
+jobs:
+    windows:
+        name: Release
+        runs-on: windows-latest
+        permissions:
+          id-token: write     # Required for OIDC token exchange
+        env:
+            RUNNER_OS: "windows"
+            CI: "1"
+        steps:
+            - name: Checkout branch
+              uses: actions/checkout@v6
+            - name: Install miniconda
+              uses: conda-incubator/setup-miniconda@v3
+              with:
+                auto-update-conda: true
+                miniforge-version: latest
+                activate-environment: test
+                # channels: conda-forge,defaults
+                python-version: "3.9"
+            - uses: nuget/setup-nuget@v2
+              with:
+                nuget-version: '5.x'
+            - name: Conda env info
+              shell: bash -l {0}
+              run: conda env list
+            - name: Install winpty
+              shell: bash -l {0}
+              run: conda install -y winpty
+            - name: Cargo build
+              shell: bash -l {0}
+              run: cargo build -vv --features conpty --features winpty
+            - uses: rust-lang/crates-io-auth-action@v1
+              id: auth
+            - run: cargo publish --allow-dirty
+              env:
+                CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
