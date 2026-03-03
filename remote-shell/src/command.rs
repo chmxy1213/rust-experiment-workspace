@@ -25,7 +25,7 @@ fn is_windows_7() -> bool {
         // Windows 7 uses Version 6.1. Windows Vista is 6.0, Window 8 is 6.2/6.3.
         // We can treat any older Windows below 10 (Version 10.x) as needing WinPty.
         // Windows 11 returns "Version 10.0..." just like Windows 10
-        if !stdout.contains("Version 10.") {
+        if !stdout.contains("10.") {
             return true;
         }
     }
