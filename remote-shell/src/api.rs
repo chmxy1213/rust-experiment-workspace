@@ -17,9 +17,9 @@ use futures::{sink::SinkExt, stream::StreamExt};
 use serde::Deserialize;
 use tokio::sync::mpsc;
 
+use crate::command::MyCommand;
 use crate::static_files::Asset;
 use crate::{ClientMsg, ServerLogMsg};
-use crate::command::MyCommand;
 
 #[derive(Deserialize)]
 pub struct ConnectParams {
@@ -79,22 +79,25 @@ async fn handle_socket(socket: WebSocket, params: ConnectParams) {
         }
     }
 
-    let mut full_cmd = shell.clone();
+    let mut args: Vec<String> = vec![];
     if is_bash {
         if let Some((_, ref path_str)) = temp_script_path {
-            full_cmd = format!("{} --rcfile {}", shell, path_str);
+            args = vec!["--rcfile".to_string(), path_str.clone()];
         }
     } else if is_pwsh {
-        full_cmd = format!("{} -NoLogo -NoExit", shell);
+        args = vec!["-NoLogo".to_string(), "-NoExit".to_string()];
     }
 
-    let spawn_result = my_cmd.spawn(&full_cmd);
-    
+    let spawn_result = my_cmd.spawn(&shell, &args);
+
     // Fallback for pwsh -> powershell on Windows
     let mut actual_result = spawn_result;
     if actual_result.is_err() && shell == "pwsh" && cfg!(target_os = "windows") {
         tracing::warn!("Failed to spawn pwsh, falling back to powershell");
-        actual_result = my_cmd.spawn("powershell -NoLogo -NoExit");
+        actual_result = my_cmd.spawn(
+            "powershell",
+            &["-NoLogo".to_string(), "-NoExit".to_string()],
+        );
     }
 
     let (mut reader, writer) = match actual_result {
@@ -108,20 +111,28 @@ async fn handle_socket(socket: WebSocket, params: ConnectParams) {
     let writer = Arc::new(Mutex::new(writer));
     let master = Arc::new(Mutex::new(my_cmd));
 
+    // Wait a brief moment to ensure the shell is ready to receive input before injecting commands.
+    // zsh's config (like oh-my-zsh) can take a long time to load, and zle's tcsetattr(TCSAFLUSH)
+    // will drop any input in the queue. Wait 1000ms to be safer.
+    if is_zsh {
+        tokio::time::sleep(std::time::Duration::from_millis(1000)).await;
+    }
+
     // Inject scripts for shells that don't support --rcfile easily or where we prefer dynamic loading
     if is_zsh {
         if let Ok(mut w) = writer.lock() {
             if let Some((_, ref path_str)) = temp_script_path {
-                let init_cmd = format!("source {}\n", path_str);
+                // Prepend some spaces in case the first character is swallowed by a slight race
+                let init_cmd = format!("   source {}\n", path_str);
                 let _ = w.write_all(init_cmd.as_bytes());
                 let _ = w.flush();
             }
         }
     } else if is_pwsh {
-        if let Ok(mut w) = writer.lock() {
-            // PowerShell sourcing
-            if let Some((_, ref path_str)) = temp_script_path {
-                let init_cmd = format!(". {}\n", path_str);
+        if let Some((_, ref path_str)) = temp_script_path {
+            tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+            if let Ok(mut w) = writer.lock() {
+                let init_cmd = format!(". '{}'\n", path_str);
                 let _ = w.write_all(init_cmd.as_bytes());
                 let _ = w.flush();
             }

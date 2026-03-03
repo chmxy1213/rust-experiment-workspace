@@ -1,4 +1,4 @@
-use axum::{Router, routing::get};
+use axum::{routing::get, Router};
 use serde::{Deserialize, Serialize};
 
 use crate::api::{index_handler, ws_handler};
