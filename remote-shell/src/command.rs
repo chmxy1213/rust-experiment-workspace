@@ -41,8 +41,10 @@ impl MyCommand {
         #[cfg(windows)]
         {
             if is_windows_7() {
+                tracing::debug!("Detected Windows 7, using WinPty");
                 MyCommand::WinPty(winpty_impl::WinPtyAdapter::new())
             } else {
+                tracing::debug!("Detected Windows 10 or later, using PortablePty");
                 MyCommand::PortablePty(portable_pty_impl::PortablePtyAdapter::new())
             }
         }
