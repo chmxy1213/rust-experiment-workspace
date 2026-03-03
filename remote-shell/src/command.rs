@@ -21,9 +21,11 @@ fn is_windows_7() -> bool {
         .output()
     {
         let stdout = String::from_utf8_lossy(&output.stdout);
+        tracing::debug!("Windows version output: {}", stdout);
         // Windows 7 uses Version 6.1. Windows Vista is 6.0, Window 8 is 6.2/6.3.
         // We can treat any older Windows below 10 (Version 10.x) as needing WinPty.
-        if !stdout.contains("Version 10.") && !stdout.contains("Version 11.") {
+        // Windows 11 returns "Version 10.0..." just like Windows 10
+        if !stdout.contains("Version 10.") {
             return true;
         }
     }

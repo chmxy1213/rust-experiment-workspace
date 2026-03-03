@@ -132,7 +132,8 @@ async fn handle_socket(socket: WebSocket, params: ConnectParams) {
         if let Some((_, ref path_str)) = temp_script_path {
             tokio::time::sleep(std::time::Duration::from_millis(500)).await;
             if let Ok(mut w) = writer.lock() {
-                let init_cmd = format!(". '{}'\n", path_str);
+                // powershell needs \r\n to correctly finish the input line properly
+                let init_cmd = format!(". '{}'\r\n", path_str);
                 let _ = w.write_all(init_cmd.as_bytes());
                 let _ = w.flush();
             }
