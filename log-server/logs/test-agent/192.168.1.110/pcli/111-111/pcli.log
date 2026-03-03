@@ -1,0 +1,707 @@
+2026-02-27T07:58:39.308+00:00 INFO  $ host_cli. `display_name`: Host Cli, `action_id`: 8002384_16_128580, `job_id`: 15271_1772179063
+2026-02-27T07:58:39.309+00:00 INFO  | > checker_action_info_string. 364.0ms. `params`: CheckerActionInfoParams { action_id: "8002384_16_128580", action_kind: "Host Cli", is_attacker: true, attacker_ip: Some("5.5.4.201"), target_ip: Some("") }
+2026-02-27T07:58:39.673+00:00 INFO  | - 
+================= Action ID(8002384_16_128580) Simulate Type(Host Cli)=================
+     role: attacker
+     version: 66.66.66.66-0
+     build tag: 66.66.66-beta.66
+     compile time: 2026-02-26T01:15:02.710683733Z
+     version hash: unknown
+     arch: x86_64
+     host name: base
+     os type: Linux 8 CentOS Stream
+     os language: en-US
+     kernel version: 4.18.0-553.5.1.el8.x86_64
+     cpu num: 8
+     mem info: 31857MB/8832MB/921MB(total/used/free)
+     cpu info: 
+     cpu usage: total average	27.10%
+	cpu0          12.00%		cpu1          19.23%		cpu2          16.00%
+	cpu3          15.38%		cpu4          100.00%		cpu5          25.00%
+	cpu6          12.50%		cpu7          16.67%
+	process CPU:
+		890178(async-std/runti)(ppid:2868862[zellij])	0.00%
+		2868890(async-std/runti)(ppid:2868862[zellij])	0.00%
+		2868892(async-io)(ppid:2868862[zellij])	0.00%
+		2868893(async-std/runti)(ppid:2868862[zellij])	0.00%
+		2204014(python3)(ppid:2617686[bash])	0.00%
+		2868887(async-std/runti)(ppid:2868862[zellij])	0.00%
+		890177(async-std/runti)(ppid:2868862[zellij])	0.00%
+		2868889(async-std/runti)(ppid:2868862[zellij])	0.00%
+		76993(vnc_worker)(ppid:76986[qemu-system-x86])	0.00%
+		2868891(async-std/runti)(ppid:2868862[zellij])	0.00%
+		890176(async-std/runti)(ppid:2868862[zellij])	0.00%
+		910(irqbalance)(ppid:1[systemd])	0.00%
+		890182(async-std/runti)(ppid:2868862[zellij])	0.00%
+		890180(async-std/runti)(ppid:2868862[zellij])	0.00%
+		890179(async-std/runti)(ppid:2868862[zellij])	0.00%
+		2868888(async-std/runti)(ppid:2868862[zellij])	0.00%
+		890181(async-std/runti)(ppid:2868862[zellij])	0.00%
+		76835(nodev-device-ev)(ppid:76771[libvirtd])	0.00%
+		108751(vnc_worker)(ppid:108736[qemu-system-x86])	0.00%
+		2868894(async-std/runti)(ppid:2868862[zellij])	0.00%
+		208(kaluad)(ppid:2[kthreadd])	0.00%
+		2868895(async-std/runti)(ppid:2868862[zellij])	0.00%
+		890175(async-std/runti)(ppid:2868862[zellij])	0.00%
+
+     ethernet info:
+	ens192 (MGMT,DATA)	mac: 00:50:56:a1:00:84 |	ipv4: 5.5.4.201/24 |	ipv6: fe80::8111:61fb:d4ee:a121/64 |	gateway: 00:0c:29:23:2d:07 5.5.4.254 |
+     attacker/target ip selection:
+	5.5.4.201 -> 
+     system dns:
+		172.16.10.20
+		202.96.209.5
+		5.5.7.120
+     net stat:
+	TCP	0.0.0.0:111	->	0.0.0.0:0	[847(rpcbind) 1(systemd) ] -	LISTEN
+	TCP	127.1.3.9:1237	->	0.0.0.0:0	[114243(checker_net) ] -	LISTEN
+	TCP	127.1.3.9:1238	->	0.0.0.0:0	[114168(checker_host) ] -	LISTEN
+	TCP	0.0.0.0:22	->	0.0.0.0:0	[1264(sshd) ] -	LISTEN
+	TCP	127.0.0.1:25	->	0.0.0.0:0	[1967(master) ] -	LISTEN
+	TCP	0.0.0.0:443	->	0.0.0.0:0	[76694(docker-proxy) ] -	LISTEN
+	TCP	0.0.0.0:8000	->	0.0.0.0:0	[2204014(python3) ] -	LISTEN
+	TCP	0.0.0.0:5355	->	0.0.0.0:0	[3805368(systemd-resolve) ] -	LISTEN
+	TCP	5.5.4.201:56686	->	5.5.7.111:38080	[114168(checker_host) ] -	ESTABLISHED
+	TCP	127.0.0.1:38238	->	127.0.0.1:9345	[] -	TIME_WAIT
+	TCP	127.1.3.9:46381	->	127.1.3.9:1238	[114093(vagent) ] -	ESTABLISHED
+	TCP	5.5.4.201:42921	->	43.254.221.22:443	[] -	TIME_WAIT
+	TCP	5.5.4.201:22	->	172.16.103.32:52060	[3821058(sshd) 3821063(sshd) ] -	ESTABLISHED
+	TCP	5.5.4.201:56692	->	5.5.7.111:38080	[114243(checker_net) ] -	ESTABLISHED
+	TCP	127.0.0.1:38276	->	127.0.0.1:9345	[] -	TIME_WAIT
+	TCP	5.5.4.201:36142	->	111.243.214.169:443	[114914(rke2) ] -	SYN_SENT
+	TCP	127.1.3.9:46147	->	127.1.3.9:1237	[114093(vagent) ] -	ESTABLISHED
+	TCP	127.0.0.1:38250	->	127.0.0.1:9345	[114914(rke2) ] -	ESTABLISHED
+	TCP	127.1.3.9:1237	->	127.1.3.9:46147	[114243(checker_net) ] -	ESTABLISHED
+	TCP	5.5.4.201:56678	->	5.5.7.111:38080	[114093(vagent) ] -	ESTABLISHED
+	TCP	127.1.3.9:1238	->	127.1.3.9:46381	[114168(checker_host) ] -	ESTABLISHED
+	UDP	127.0.0.53:53	->	*:*	[3805368(systemd-resolve) ]
+	UDP	0.0.0.0:111	->	*:*	[1(systemd) 847(rpcbind) ]
+	UDP	127.0.0.1:323	->	*:*	[920(chronyd) ]
+	UDP	0.0.0.0:5355	->	*:*	[3805368(systemd-resolve) ]
+	TCP	:::111	->	:::0	[1(systemd) 847(rpcbind) ] -	LISTEN
+	TCP	:::22	->	:::0	[1264(sshd) ] -	LISTEN
+	TCP	::1:25	->	:::0	[1967(master) ] -	LISTEN
+	TCP	:::443	->	:::0	[76701(docker-proxy) ] -	LISTEN
+	TCP	:::9345	->	:::0	[114914(rke2) ] -	LISTEN
+	TCP	:::5355	->	:::0	[3805368(systemd-resolve) ] -	LISTEN
+	TCP	::ffff:127.0.0.1:9345	->	::ffff:127.0.0.1:48440	[] -	TIME_WAIT
+	TCP	::ffff:127.0.0.1:9345	->	::ffff:127.0.0.1:38276	[] -	TIME_WAIT
+	TCP	::ffff:127.0.0.1:9345	->	::ffff:127.0.0.1:38250	[114914(rke2) ] -	ESTABLISHED
+	TCP	::ffff:5.5.4.201:34990	->	::ffff:43.254.221.22:443	[114093(vagent) ] -	ESTABLISHED
+	TCP	::ffff:5.5.4.201:34992	->	::ffff:43.254.221.22:443	[114093(vagent) ] -	ESTABLISHED
+	UDP	:::111	->	*:*	[1(systemd) 847(rpcbind) ]
+	UDP	::1:323	->	*:*	[920(chronyd) ]
+	UDP	:::5355	->	*:*	[3805368(systemd-resolve) ]
+===========================================
+. 
+2026-02-27T07:58:39.673+00:00 INFO  | $ create_action_task. `job_id_raw`: 15271_1772179063, `action_id_raw`: 8002384_16_128580
+2026-02-27T07:58:39.673+00:00 INFO  | | > decompress file data. 572.4µs. `compressed_data_len`: 6, `decompressed_data_len`: <NULL>
+2026-02-27T07:58:39.674+00:00 INFO  | ^ create_action_task. 791.6µs.
+2026-02-27T07:58:39.674+00:00 INFO  | $ handle_action_task. 
+2026-02-27T07:58:39.674+00:00 INFO  | | > wait_canceled. 12.8s. 
+2026-02-27T07:58:39.674+00:00 INFO  | | > set_ready. 1.0ms. 
+2026-02-27T07:58:39.675+00:00 INFO  | | $ run. 
+2026-02-27T07:58:39.676+00:00 DEBUG | | | - hostcli param. `value`: HostCliParam {
+    job_id: "15271_1772179063",
+    action_id: "8002384_16_128580",
+    dep_files: [
+        HostCliDepFile {
+            dest_path: "/tmp/15271FIN8002384FIN128580/b.txt",
+            file_data: <len=4>,
+            fta_name: "cli_action_8002384_16_998002296.fta",
+            name: "b.txt",
+        },
+    ],
+    steps: [
+        HostCliStep {
+            index: 1,
+            command: echo hello,
+            prompt: None,
+            step_kind: Task,
+            context_conf: {},
+            blocked: None,
+            error: None,
+            success: Some(
+                HostCliStepCondition {
+                    name: "success",
+                    order: Some(
+                        1,
+                    ),
+                    check: zero,
+                    match_patern: None,
+                    aborted_reason: None,
+                },
+            ),
+            incompatible: None,
+            sleep_duration: 0ns,
+            execute_timeout: Some(
+                13s,
+            ),
+        },
+        HostCliStep {
+            index: 2,
+            command: :,
+            prompt: None,
+            step_kind: Task,
+            context_conf: {},
+            blocked: None,
+            error: None,
+            success: Some(
+                HostCliStepCondition {
+                    name: "success",
+                    order: Some(
+                        1,
+                    ),
+                    check: zero,
+                    match_patern: None,
+                    aborted_reason: None,
+                },
+            ),
+            incompatible: None,
+            sleep_duration: 0ns,
+            execute_timeout: Some(
+                13s,
+            ),
+        },
+        HostCliStep {
+            index: 3,
+            command: cd /tmp/15271FIN8002384FIN128580/ && cat a.txt,
+            prompt: None,
+            step_kind: Task,
+            context_conf: {},
+            blocked: None,
+            error: None,
+            success: Some(
+                HostCliStepCondition {
+                    name: "success",
+                    order: Some(
+                        1,
+                    ),
+                    check: zero,
+                    match_patern: None,
+                    aborted_reason: None,
+                },
+            ),
+            incompatible: None,
+            sleep_duration: 0ns,
+            execute_timeout: Some(
+                13s,
+            ),
+        },
+        HostCliStep {
+            index: 4,
+            command: echo $TERM,
+            prompt: None,
+            step_kind: Task,
+            context_conf: {},
+            blocked: None,
+            error: None,
+            success: Some(
+                HostCliStepCondition {
+                    name: "success",
+                    order: Some(
+                        1,
+                    ),
+                    check: zero,
+                    match_patern: None,
+                    aborted_reason: None,
+                },
+            ),
+            incompatible: None,
+            sleep_duration: 0ns,
+            execute_timeout: Some(
+                13s,
+            ),
+        },
+        HostCliStep {
+            index: 5,
+            command: echo Çağlayan,
+            prompt: None,
+            step_kind: Task,
+            context_conf: {},
+            blocked: None,
+            error: None,
+            success: Some(
+                HostCliStepCondition {
+                    name: "success",
+                    order: Some(
+                        1,
+                    ),
+                    check: zero,
+                    match_patern: None,
+                    aborted_reason: None,
+                },
+            ),
+            incompatible: None,
+            sleep_duration: 0ns,
+            execute_timeout: Some(
+                63s,
+            ),
+        },
+        HostCliStep {
+            index: 6,
+            command: unset HISTFILE; 
+            unset HISTSAVE;
+            history -n;
+            unset WATCH;
+            HISTFILE=/dev/null,
+            prompt: None,
+            step_kind: Task,
+            context_conf: {},
+            blocked: None,
+            error: None,
+            success: Some(
+                HostCliStepCondition {
+                    name: "success",
+                    order: Some(
+                        1,
+                    ),
+                    check: zero,
+                    match_patern: None,
+                    aborted_reason: None,
+                },
+            ),
+            incompatible: None,
+            sleep_duration: 0ns,
+            execute_timeout: Some(
+                13s,
+            ),
+        },
+        HostCliStep {
+            index: 7,
+            command: echo aaa
+            cd ~/
+            echo bbb,
+            prompt: None,
+            step_kind: Task,
+            context_conf: {},
+            blocked: None,
+            error: None,
+            success: Some(
+                HostCliStepCondition {
+                    name: "success",
+                    order: Some(
+                        1,
+                    ),
+                    check: zero,
+                    match_patern: None,
+                    aborted_reason: None,
+                },
+            ),
+            incompatible: None,
+            sleep_duration: 0ns,
+            execute_timeout: Some(
+                13s,
+            ),
+        },
+        HostCliStep {
+            index: 8,
+            command: . ~/.profile,
+            prompt: None,
+            step_kind: Task,
+            context_conf: {},
+            blocked: None,
+            error: None,
+            success: Some(
+                HostCliStepCondition {
+                    name: "success",
+                    order: Some(
+                        1,
+                    ),
+                    check: zero,
+                    match_patern: None,
+                    aborted_reason: None,
+                },
+            ),
+            incompatible: None,
+            sleep_duration: 4s,
+            execute_timeout: Some(
+                63s,
+            ),
+        },
+        HostCliStep {
+            index: 9,
+            command: rm -rf /tmp/15271FIN8002384FIN128580/15271FIN8002384FIN128580,
+            prompt: None,
+            step_kind: Clean,
+            context_conf: {},
+            blocked: None,
+            error: None,
+            success: Some(
+                HostCliStepCondition {
+                    name: "success",
+                    order: Some(
+                        2,
+                    ),
+                    check: zero,
+                    match_patern: None,
+                    aborted_reason: None,
+                },
+            ),
+            incompatible: None,
+            sleep_duration: 4s,
+            execute_timeout: Some(
+                63s,
+            ),
+        },
+    ],
+    context_env: {},
+    shell_name: "bash",
+    user: None,
+    delivery_wait_time: 1s,
+    delivery_failed_result: Some(
+        "blocked",
+    ),
+    windows_run_env: Session0,
+    use_pty: true,
+    clean_isolation: false,
+    ..
+}
+2026-02-27T07:58:39.677+00:00 INFO  | | | > set_env_from_shell. 4.5ms. 
+2026-02-27T07:58:39.682+00:00 INFO  | | | > write dep file. 1.0s. `dest_path`: "/tmp/15271FIN8002384FIN128580/b.txt", `fta_name`: "cli_action_8002384_16_998002296.fta", `name`: "b.txt", `file_len`: 4
+2026-02-27T07:58:40.684+00:00 INFO  | | | $ virtual file service. 
+2026-02-27T07:58:40.689+00:00 DEBUG | | | | - skip, not need zip virtual server. `zip_filename`: "b.txt"
+2026-02-27T07:58:40.689+00:00 INFO  | | | ^ virtual file service. 4.3ms.
+2026-02-27T07:58:40.685+00:00 DEBUG | | | $ builder. `program_name`: /opt/apps/secvision/pcli, `args`: Some([]), `user`: None, `domain`: None, `work_dir`: Some("/opt/apps/secvision/hostcli_cwd"), `use_pty`: false, `windows_pty`: WinPty, `windows_dekstop_session`: false, `run_cmd_timeout`: None
+2026-02-27T07:58:40.685+00:00 INFO  | | | | $ command new. `program_path`: "/opt/apps/secvision/pcli", `spawn_options`: SvShellSpawnOptions { work_dir: Some("/opt/apps/secvision/hostcli_cwd"), env: {"TRACING_LIVE_BRIEF": "15271_1772179063--8002384_16_128580", "SHELL_DATA": "{\"shell\":\"bash\",\"use_pty\":true,\"run_cmd_timeout\":{\"secs\":160,\"nanos\":0},\"windows_pty\":\"WinPty\",\"listen_port\":31233,\"envs\":{}}", "PATH": "/usr/local/bin:/usr/local/sbin:/usr/bin:/usr/sbin:/opt/apps/secvision/deps"}, user: None, password: None, domain: None, init_timeout: 24s, run_cmd_timeout: 30s, use_pty: false, windows_pty: WinPty, windows_dekstop_session: false, stdin_debug: Some("/opt/apps/secvision/stdin.txt"), stdout_debug: Some("/opt/apps/secvision/stdout.txt"), stderr_debug: Some("/opt/apps/secvision/stderr.txt") }
+2026-02-27T07:58:40.686+00:00 INFO  | | | | | > tokio command. 286.0µs. 
+2026-02-27T07:58:40.686+00:00 INFO  | | | | ^ command new. 493.1µs.
+2026-02-27T07:58:40.686+00:00 DEBUG | | | ^ builder. 877.9µs.
+2026-02-27T07:58:40.686+00:00 INFO  | | | > spawn_and_piped. 76.6µs. 
+2026-02-27T07:58:40.686+00:00 INFO  | | | > spawn_and_piped. 639.4µs. `self`: Command { std: cd "/opt/apps/secvision/hostcli_cwd" && PATH="/usr/local/bin:/usr/local/sbin:/usr/bin:/usr/sbin:/opt/apps/secvision/deps" SHELL_DATA="{\"shell\":\"bash\",\"use_pty\":true,\"run_cmd_timeout\":{\"secs\":160,\"nanos\":0},\"windows_pty\":\"WinPty\",\"listen_port\":31233,\"envs\":{}}" TRACING_LIVE_BRIEF="15271_1772179063--8002384_16_128580" "/opt/apps/secvision/pcli", kill_on_drop: false }
+2026-02-27T07:58:42.689+00:00 DEBUG | | | $ create. 
+2026-02-27T07:58:42.689+00:00 DEBUG | | | | $ init. 
+2026-02-27T07:58:42.689+00:00 INFO  | | | | | $ init_shell. 
+2026-02-27T07:58:42.689+00:00 DEBUG | | | | | | > read frame len. 771.9ms. 
+2026-02-27T07:58:43.461+00:00 DEBUG | | | | | | > read frame payload. 119.9µs. 
+2026-02-27T07:58:43.462+00:00 INFO  | | | | | ^ init_shell. 772.4ms.
+2026-02-27T07:58:43.462+00:00 DEBUG | | | | ^ init. 772.8ms.
+2026-02-27T07:58:43.462+00:00 DEBUG | | | ^ create. 773.0ms.
+2026-02-27T07:58:43.462+00:00 INFO  | | | $ Execute Step. `steps`: 8
+2026-02-27T07:58:43.462+00:00 INFO  | | | | $ Execute Step Item. `index`: 1, `command`: "echo hello", `step`: 1/8
+2026-02-27T07:58:43.463+00:00 DEBUG | | | | | $ run_cmd. `cmd`: "echo hello", `prompt`: None, `sleep_duration`: 0ns, `execute_timeout`: Some(13s)
+2026-02-27T07:58:43.463+00:00 DEBUG | | | | | | > write. 217.6µs. 
+2026-02-27T07:58:43.464+00:00 DEBUG | | | | | | > read frame len. 862.8ms. 
+2026-02-27T07:58:44.327+00:00 DEBUG | | | | | | > read frame payload. 40.1ms. 
+2026-02-27T07:58:44.367+00:00 DEBUG | | | | | ^ run_cmd. 903.6ms.
+2026-02-27T07:58:44.367+00:00 INFO  | | | | | - command execute end. `result`: ShellCmdEndInfo {
+    prompt_info: ShellPromptInfo {
+        cur_user: "root",
+        cur_location: "/opt/apps/secvision/hostcli_cwd",
+        cur_host_name: "base",
+        prompt: "root@base:/opt/apps/secvision/hostcli_cwd# ",
+    },
+    cmd_is_success: true,
+    shell_out: r#"
+    hello
+    "#,
+}, `cmd_process_ids`: []
+2026-02-27T07:58:44.368+00:00 INFO  | | | | | > update_action_context_env. 1.5ms. 
+2026-02-27T07:58:44.369+00:00 INFO  | | | | | $ check step output. 
+2026-02-27T07:58:44.369+00:00 INFO  | | | | | | $ check item. `check_type`: success, `condition`: command succeeded, `order`: 1
+2026-02-27T07:58:44.369+00:00 INFO  | | | | | | | - check end. `is_matched`: true
+2026-02-27T07:58:44.370+00:00 INFO  | | | | | | ^ check item. 332.8µs.
+2026-02-27T07:58:44.370+00:00 INFO  | | | | | ^ check step output. 495.9µs.
+2026-02-27T07:58:44.370+00:00 INFO  | | | | | > sleep. 1.3ms. `duration`: 0ns
+2026-02-27T07:58:44.371+00:00 INFO  | | | | ^ Execute Step Item. 909.0ms.
+2026-02-27T07:58:44.371+00:00 INFO  | | | | $ Execute Step Item. `index`: 2, `command`: ":", `step`: 2/8
+2026-02-27T07:58:44.380+00:00 DEBUG | | | | | $ run_cmd. `cmd`: ":", `prompt`: None, `sleep_duration`: 0ns, `execute_timeout`: Some(13s)
+2026-02-27T07:58:44.380+00:00 DEBUG | | | | | | > write. 198.3µs. 
+2026-02-27T07:58:44.380+00:00 DEBUG | | | | | | > read frame len. 849.4ms. 
+2026-02-27T07:58:45.230+00:00 DEBUG | | | | | | > read frame payload. 40.2ms. 
+2026-02-27T07:58:45.270+00:00 DEBUG | | | | | ^ run_cmd. 890.3ms.
+2026-02-27T07:58:45.271+00:00 INFO  | | | | | - command execute end. `result`: ShellCmdEndInfo {
+    prompt_info: ShellPromptInfo {
+        cur_user: "root",
+        cur_location: "/opt/apps/secvision/hostcli_cwd",
+        cur_host_name: "base",
+        prompt: "root@base:/opt/apps/secvision/hostcli_cwd# ",
+    },
+    cmd_is_success: true,
+    shell_out: r#"
+    
+    "#,
+}, `cmd_process_ids`: []
+2026-02-27T07:58:45.271+00:00 INFO  | | | | | > update_action_context_env. 997.5µs. 
+2026-02-27T07:58:45.272+00:00 INFO  | | | | | $ check step output. 
+2026-02-27T07:58:45.272+00:00 INFO  | | | | | | $ check item. `check_type`: success, `condition`: command succeeded, `order`: 1
+2026-02-27T07:58:45.272+00:00 INFO  | | | | | | | - check end. `is_matched`: true
+2026-02-27T07:58:45.272+00:00 INFO  | | | | | | ^ check item. 197.2µs.
+2026-02-27T07:58:45.272+00:00 INFO  | | | | | ^ check step output. 414.9µs.
+2026-02-27T07:58:45.273+00:00 INFO  | | | | | > sleep. 1.3ms. `duration`: 0ns
+2026-02-27T07:58:45.274+00:00 INFO  | | | | ^ Execute Step Item. 902.7ms.
+2026-02-27T07:58:45.274+00:00 INFO  | | | | $ Execute Step Item. `index`: 3, `command`: "cd /tmp/15271FIN8002384FIN128580/ && cat a.txt", `step`: 3/8
+2026-02-27T07:58:45.275+00:00 DEBUG | | | | | $ run_cmd. `cmd`: "cd /tmp/15271FIN8002384FIN128580/ && cat a.txt", `prompt`: None, `sleep_duration`: 0ns, `execute_timeout`: Some(13s)
+2026-02-27T07:58:45.275+00:00 DEBUG | | | | | | > write. 167.2µs. 
+2026-02-27T07:58:45.275+00:00 DEBUG | | | | | | > read frame len. 857.9ms. 
+2026-02-27T07:58:46.133+00:00 DEBUG | | | | | | > read frame payload. 40.5ms. 
+2026-02-27T07:58:46.174+00:00 DEBUG | | | | | ^ run_cmd. 899.2ms.
+2026-02-27T07:58:46.175+00:00 INFO  | | | | | - command execute end. `result`: ShellCmdEndInfo {
+    prompt_info: ShellPromptInfo {
+        cur_user: "root",
+        cur_location: "/tmp/15271FIN8002384FIN128580",
+        cur_host_name: "base",
+        prompt: "root@base:/tmp/15271FIN8002384FIN128580# ",
+    },
+    cmd_is_success: false,
+    shell_out: r#"
+    cat: a.txt: No such file or directory
+    "#,
+}, `cmd_process_ids`: []
+2026-02-27T07:58:46.175+00:00 INFO  | | | | | > update_action_context_env. 1.1ms. 
+2026-02-27T07:58:46.176+00:00 INFO  | | | | | $ check step output. 
+2026-02-27T07:58:46.176+00:00 INFO  | | | | | | $ check item. `check_type`: success, `condition`: command succeeded, `order`: 1
+2026-02-27T07:58:46.176+00:00 INFO  | | | | | | | - check end. `is_matched`: false
+2026-02-27T07:58:46.177+00:00 INFO  | | | | | | ^ check item. 331.9µs.
+2026-02-27T07:58:46.177+00:00 INFO  | | | | | | - success condition not matched. 
+2026-02-27T07:58:46.177+00:00 INFO  | | | | | ^ check step output. 796.1µs.
+2026-02-27T07:58:46.177+00:00 INFO  | | | | ^ Execute Step Item. 903.1ms.
+2026-02-27T07:58:46.177+00:00 INFO  | | | | - current task result. `value`: SeHostCliStepExecute { step_index: 3, command: r#"
+cd /tmp/15271FIN8002384FIN128580/ && cat a.txt
+"#, end_cause: CommandConditionNoMatched { message: "success condition not matched", output: r#"
+cat: a.txt: No such file or directory
+"#, no_matched: [NoMatchedItem { check_type: "success", command_check: CommandSucceeded { output: r#"
+cat: a.txt: No such file or directory
+"# } }] }, task_final_result: Blocked }
+2026-02-27T07:58:46.177+00:00 INFO  | | | | - already end. skip step. `step_index`: 4, `command`: "echo $TERM", `end`: Blocked
+2026-02-27T07:58:46.178+00:00 INFO  | | | | - already end. skip step. `step_index`: 5, `command`: "echo C\u{327}ag\u{306}layan", `end`: Blocked
+2026-02-27T07:58:46.178+00:00 INFO  | | | | - already end. skip step. `step_index`: 6, `command`: "unset HISTFILE; \nunset HISTSAVE;\nhistory -n;\nunset WATCH;\nHISTFILE=/dev/null", `end`: Blocked
+2026-02-27T07:58:46.178+00:00 INFO  | | | | - already end. skip step. `step_index`: 7, `command`: "echo aaa\ncd ~/\necho bbb", `end`: Blocked
+2026-02-27T07:58:46.178+00:00 INFO  | | | | - already end. skip step. `step_index`: 8, `command`: ". ~/.profile", `end`: Blocked
+2026-02-27T07:58:46.178+00:00 INFO  | | | ^ Execute Step. 2.7s.
+2026-02-27T07:58:46.178+00:00 INFO  | | | $ Execute Clean Step. `steps`: 1
+2026-02-27T07:58:46.179+00:00 INFO  | | | | $ Execute Clean Step Item. `index`: 9, `command`: "rm -rf /tmp/15271FIN8002384FIN128580/15271FIN8002384FIN128580", `step`: 1/1
+2026-02-27T07:58:46.179+00:00 DEBUG | | | | | $ clean. 
+2026-02-27T07:58:46.179+00:00 DEBUG | | | | | | $ run_cmd. `cmd`: "rm -rf /tmp/15271FIN8002384FIN128580/15271FIN8002384FIN128580", `prompt`: None, `sleep_duration`: 4s, `execute_timeout`: Some(63s)
+2026-02-27T07:58:46.180+00:00 DEBUG | | | | | | | > write. 331.8µs. 
+2026-02-27T07:58:46.180+00:00 DEBUG | | | | | | | > read frame len. 859.4ms. 
+2026-02-27T07:58:47.039+00:00 DEBUG | | | | | | | > read frame payload. 40.3ms. 
+2026-02-27T07:58:47.080+00:00 DEBUG | | | | | | ^ run_cmd. 900.7ms.
+2026-02-27T07:58:47.080+00:00 INFO  | | | | | | - clean command execute end. `result`: ShellCmdEndInfo {
+    prompt_info: ShellPromptInfo {
+        cur_user: "root",
+        cur_location: "/tmp/15271FIN8002384FIN128580",
+        cur_host_name: "base",
+        prompt: "root@base:/tmp/15271FIN8002384FIN128580# ",
+    },
+    cmd_is_success: true,
+    shell_out: r#"
+    
+    "#,
+}
+2026-02-27T07:58:47.080+00:00 DEBUG | | | | | ^ clean. 901.2ms.
+2026-02-27T07:58:47.080+00:00 INFO  | | | | ^ Execute Clean Step Item. 901.9ms.
+2026-02-27T07:58:47.081+00:00 INFO  | | | | - execute clean commond summary. `total_count`: 1, `success_count`: 1, `failed_count`: 0
+2026-02-27T07:58:47.081+00:00 INFO  | | | ^ Execute Clean Step. 902.4ms.
+2026-02-27T07:58:47.081+00:00 INFO  | | | $ kill_all_child. `pid`: 114932, `timeout`: 30s, `force`: 5s
+2026-02-27T07:58:47.151+00:00 INFO  | | | | - clean process. `pid`: 114937, `parent_pid`: 114932, `name`: "tokio-runtime-w"
+2026-02-27T07:58:47.151+00:00 INFO  | | | | - clean process. `pid`: 114940, `parent_pid`: 114932, `name`: "tokio-runtime-w"
+2026-02-27T07:58:47.151+00:00 INFO  | | | | - clean process. `pid`: 114938, `parent_pid`: 114932, `name`: "tokio-runtime-w"
+2026-02-27T07:58:47.151+00:00 INFO  | | | | - clean process. `pid`: 114934, `parent_pid`: 114932, `name`: "tokio-runtime-w"
+2026-02-27T07:58:47.151+00:00 INFO  | | | | - clean process. `pid`: 114941, `parent_pid`: 114932, `name`: "OpenTelemetry.T"
+2026-02-27T07:58:47.151+00:00 INFO  | | | | - clean process. `pid`: 114933, `parent_pid`: 114932, `name`: "tokio-runtime-w"
+2026-02-27T07:58:47.151+00:00 INFO  | | | | - clean process. `pid`: 114942, `parent_pid`: 114932, `name`: "bash"
+2026-02-27T07:58:47.151+00:00 INFO  | | | | - clean process. `pid`: 114936, `parent_pid`: 114932, `name`: "tokio-runtime-w"
+2026-02-27T07:58:47.151+00:00 INFO  | | | | - clean process. `pid`: 114939, `parent_pid`: 114932, `name`: "tokio-runtime-w"
+2026-02-27T07:58:47.151+00:00 INFO  | | | | - clean process. `pid`: 114935, `parent_pid`: 114932, `name`: "tokio-runtime-w"
+2026-02-27T07:58:47.151+00:00 INFO  | | | | - clean process. `pid`: 114932, `parent_pid`: 114168, `name`: "pcli"
+2026-02-27T07:58:47.151+00:00 INFO  | | | | $ wait_process_exit. `timeout`: 30s, `force`: 5s
+2026-02-27T07:58:47.217+00:00 INFO  | | | | | - process exited. `pid`: 114937, `parent_pid`: 114932, `name`: "tokio-runtime-w"
+2026-02-27T07:58:47.267+00:00 INFO  | | | | | - process exited. `pid`: 114940, `parent_pid`: 114932, `name`: "tokio-runtime-w"
+2026-02-27T07:58:47.321+00:00 INFO  | | | | | - process exited. `pid`: 114938, `parent_pid`: 114932, `name`: "tokio-runtime-w"
+2026-02-27T07:58:47.378+00:00 INFO  | | | | | - process exited. `pid`: 114934, `parent_pid`: 114932, `name`: "tokio-runtime-w"
+2026-02-27T07:58:47.422+00:00 INFO  | | | | | - process exited. `pid`: 114941, `parent_pid`: 114932, `name`: "OpenTelemetry.T"
+2026-02-27T07:58:47.463+00:00 INFO  | | | | | - process exited. `pid`: 114933, `parent_pid`: 114932, `name`: "tokio-runtime-w"
+2026-02-27T07:58:47.507+00:00 INFO  | | | | | - process exited. `pid`: 114942, `parent_pid`: 114932, `name`: "bash"
+2026-02-27T07:58:47.553+00:00 INFO  | | | | | - process exited. `pid`: 114936, `parent_pid`: 114932, `name`: "tokio-runtime-w"
+2026-02-27T07:58:47.600+00:00 INFO  | | | | | - process exited. `pid`: 114939, `parent_pid`: 114932, `name`: "tokio-runtime-w"
+2026-02-27T07:58:47.649+00:00 INFO  | | | | | - process exited. `pid`: 114935, `parent_pid`: 114932, `name`: "tokio-runtime-w"
+2026-02-27T07:58:52.303+00:00 INFO  | | | | | - force kill process. `pid`: 114932, `parent_pid`: 114168, `name`: "pcli"
+2026-02-27T07:58:52.403+00:00 INFO  | | | | | - kill process summary. `total_processes`: 11, `exited_processes`: 10, `froce_exit_process`: 1, `exit_timeout_process`: 0
+2026-02-27T07:58:52.403+00:00 INFO  | | | | ^ wait_process_exit. 5.3s.
+2026-02-27T07:58:52.412+00:00 INFO  | | | ^ kill_all_child. 5.3s.
+2026-02-27T07:58:52.475+00:00 DEBUG | | | - will be clean. `sorted_paths`: ["/tmp/15271FIN8002384FIN128580/b.txt", "/tmp/15271FIN8002384FIN128580"]
+2026-02-27T07:58:52.476+00:00 DEBUG | | | - clean file. `path`: /tmp/15271FIN8002384FIN128580/b.txt
+2026-02-27T07:58:52.476+00:00 DEBUG | | | - clean dir. `path`: /tmp/15271FIN8002384FIN128580
+2026-02-27T07:58:52.476+00:00 INFO  | | | $ print_stdio_log. 
+2026-02-27T07:58:52.476+00:00 INFO  | | | | - command execute stdin log. `log`: r#"
+
+=============================================
+echo WAIT_READY:$?
+export PS1='VAGENT_PCLI>'
+whoami
+pwd
+hostname
+whoami
+hostname
+pwd
+echo hello
+echo [EXIT_CODE_MARKER]$?[EXIT_CODE_MARKER]
+whoami
+pwd
+hostname
+whoami
+hostname
+pwd
+:
+echo [EXIT_CODE_MARKER]$?[EXIT_CODE_MARKER]
+whoami
+pwd
+hostname
+whoami
+hostname
+pwd
+cd /tmp/15271FIN8002384FIN128580/ && cat a.txt
+echo [EXIT_CODE_MARKER]$?[EXIT_CODE_MARKER]
+whoami
+pwd
+hostname
+whoami
+hostname
+pwd
+rm -rf /tmp/15271FIN8002384FIN128580/15271FIN8002384FIN128580
+echo [EXIT_CODE_MARKER]$?[EXIT_CODE_MARKER]
+whoami
+pwd
+hostname
+whoami
+hostname
+pwd
+
+"#
+2026-02-27T07:58:52.477+00:00 INFO  | | | | - command execute stdout log. `log`: r#"
+
+=============================================
+echo WAIT_READY:$?
+bash-4.4# echo WAIT_READY:$?
+WAIT_READY:0
+bash-4.4# export PS1='VAGENT_PCLI>'
+VAGENT_PCLI>whoami
+root
+VAGENT_PCLI>pwd
+/opt/apps/secvision/hostcli_cwd
+VAGENT_PCLI>hostname
+base
+VAGENT_PCLI>whoami
+root
+VAGENT_PCLI>hostname
+base
+VAGENT_PCLI>pwd
+/opt/apps/secvision/hostcli_cwd
+VAGENT_PCLI>echo hello
+hello
+VAGENT_PCLI>echo [EXIT_CODE_MARKER]$?[EXIT_CODE_MARKER]
+[EXIT_CODE_MARKER]0[EXIT_CODE_MARKER]
+VAGENT_PCLI>whoami
+root
+VAGENT_PCLI>pwd
+/opt/apps/secvision/hostcli_cwd
+VAGENT_PCLI>hostname
+base
+VAGENT_PCLI>whoami
+root
+VAGENT_PCLI>hostname
+base
+VAGENT_PCLI>pwd
+/opt/apps/secvision/hostcli_cwd
+VAGENT_PCLI>:
+VAGENT_PCLI>echo [EXIT_CODE_MARKER]$?[EXIT_CODE_MARKER]
+[EXIT_CODE_MARKER]0[EXIT_CODE_MARKER]
+VAGENT_PCLI>whoami
+root
+VAGENT_PCLI>pwd
+/opt/apps/secvision/hostcli_cwd
+VAGENT_PCLI>hostname
+base
+VAGENT_PCLI>whoami
+root
+VAGENT_PCLI>hostname
+base
+VAGENT_PCLI>pwd
+/opt/apps/secvision/hostcli_cwd
+VAGENT_PCLI>cd /tmp/15271FIN8002384FIN128580/ && cat a.txt
+cat: a.txt: No such file or directory
+VAGENT_PCLI>echo [EXIT_CODE_MARKER]$?[EXIT_CODE_MARKER]
+[EXIT_CODE_MARKER]1[EXIT_CODE_MARKER]
+VAGENT_PCLI>whoami
+root
+VAGENT_PCLI>pwd
+/tmp/15271FIN8002384FIN128580
+VAGENT_PCLI>hostname
+base
+VAGENT_PCLI>whoami
+root
+VAGENT_PCLI>hostname
+base
+VAGENT_PCLI>pwd
+/tmp/15271FIN8002384FIN128580
+VAGENT_PCLI>rm -rf /tmp/15271FIN8002384FIN128580/15271FIN8002384FIN128580
+VAGENT_PCLI>echo [EXIT_CODE_MARKER]$?[EXIT_CODE_MARKER]
+[EXIT_CODE_MARKER]0[EXIT_CODE_MARKER]
+VAGENT_PCLI>whoami
+root
+VAGENT_PCLI>pwd
+/tmp/15271FIN8002384FIN128580
+VAGENT_PCLI>hostname
+base
+VAGENT_PCLI>whoami
+root
+VAGENT_PCLI>hostname
+base
+VAGENT_PCLI>pwd
+/tmp/15271FIN8002384FIN128580
+VAGENT_PCLI>
+"#
+2026-02-27T07:58:52.477+00:00 INFO  | | | | - command execute stderr log. `log`: r#"
+
+=============================================
+
+"#
+2026-02-27T07:58:52.477+00:00 INFO  | | | ^ print_stdio_log. 893.4µs.
+2026-02-27T07:58:52.477+00:00 INFO  | | ^ run. 12.8s.
+2026-02-27T07:58:52.477+00:00 WARN  | | - TASK BLOCKED. `report`: SvUserError {
+    aborted_reason: Blocked,
+    trace_id: 0,
+    code: "10001",
+    brief: r#"
+    10001. SeHostCliStepExecute. step_3: success condition not matched
+    
+    SeHostCliStepExecute {
+        step_index: 3,
+        command: r#"
+        cd /tmp/15271FIN8002384FIN128580/ && cat a.txt
+        "#,
+        end_cause: CommandConditionNoMatched {
+            message: "success condition not matched",
+            output: r#"
+            cat: a.txt: No such file or directory
+            "#,
+            no_matched: [
+                NoMatchedItem {
+                    check_type: "success",
+                    command_check: CommandSucceeded {
+                        output: r#"
+                        cat: a.txt: No such file or directory
+                        "#,
+                    },
+                },
+            ],
+        },
+        task_final_result: Blocked,
+    }
+    "#,
+    detail: r#"
+    ================ SV Error Report ================
+    
+    Outer contexts:
+      1: crates/sv-hostcli/src/lib.rs:433:16
+         span_id: Id(2252349569499137)
+      2: marker
+         /project/crates/sv-user-error/src/lib.rs:159:17
+         span_id: Id(2252349569499137)
+    =================================================
+    
+    "#,
+}
+2026-02-27T07:58:52.478+00:00 INFO  | ^ handle_action_task. 12.8s.
+2026-02-27T07:58:52.478+00:00 INFO  ^ host_cli. 13.2s.

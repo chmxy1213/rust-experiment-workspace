@@ -5,6 +5,7 @@ import axios from 'axios'
 const logs = ref([])
 const currentLog = ref(null)
 const logLines = ref([])
+const searchQuery = ref('')
 
 const fetchLogs = async () => {
   try {
@@ -15,9 +16,17 @@ const fetchLogs = async () => {
   }
 }
 
+const filteredLogs = computed(() => {
+  if (!searchQuery.value.trim()) {
+    return logs.value
+  }
+  const query = searchQuery.value.toLowerCase()
+  return logs.value.filter(log => log.path.toLowerCase().includes(query))
+})
+
 const groupedLogs = computed(() => {
   const groups = {}
-  logs.value.forEach(log => {
+  filteredLogs.value.forEach(log => {
     if (!groups[log.agent_name]) {
       groups[log.agent_name] = []
     }
@@ -61,14 +70,25 @@ onMounted(() => {
     <div class="flex flex-1 overflow-hidden">
       <!-- Left Sidebar: Log List -->
       <div class="w-1/3 md:w-1/4 lg:w-1/5 bg-white border-r border-gray-200 overflow-y-auto flex flex-col">
-        <div class="p-4 border-b border-gray-200 bg-gray-50 flex justify-between items-center sticky top-0 z-10">
-          <h2 class="text-lg font-semibold">Log Files</h2>
-          <button @click="fetchLogs" class="text-gray-500 hover:text-blue-500" title="Refresh">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
-          </button>
+        <div class="p-4 border-b border-gray-200 bg-gray-50 flex flex-col gap-3 sticky top-0 z-10">
+          <div class="flex justify-between items-center">
+            <h2 class="text-lg font-semibold">Log Files</h2>
+            <button @click="fetchLogs" class="text-gray-500 hover:text-blue-500" title="Refresh">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+            </button>
+          </div>
+          <div class="relative">
+            <input 
+              v-model="searchQuery" 
+              type="text" 
+              placeholder="Search by task-id, path..." 
+              class="w-full pl-8 pr-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 "
+            >
+            <svg class="w-4 h-4 text-gray-400 absolute left-2.5 top-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+          </div>
         </div>
         
-        <div v-if="logs.length === 0" class="p-4 text-gray-500 text-center italic">
+        <div v-if="filteredLogs.length === 0" class="p-4 text-gray-500 text-center italic">
           No logs found.
         </div>
         
