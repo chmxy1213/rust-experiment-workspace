@@ -21,4 +21,4 @@ tempfile = "3.26.0"
 anyhow = "1.0"
 
 [target.'cfg(windows)'.dependencies]
-winpty-rs = { path = "../winpty-rs" }
+winpty-rs = { path = "../winpty-rs", features = ["winpty"] }
