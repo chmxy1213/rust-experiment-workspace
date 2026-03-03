@@ -14,12 +14,12 @@ use axum::{
     response::{Html, IntoResponse},
 };
 use futures::{sink::SinkExt, stream::StreamExt};
-use portable_pty::{NativePtySystem, PtySize, PtySystem};
 use serde::Deserialize;
 use tokio::sync::mpsc;
 
 use crate::static_files::Asset;
 use crate::{ClientMsg, ServerLogMsg};
+use crate::command::MyCommand;
 
 #[derive(Deserialize)]
 pub struct ConnectParams {
@@ -43,16 +43,7 @@ pub async fn ws_handler(
 
 async fn handle_socket(socket: WebSocket, params: ConnectParams) {
     tracing::info!("New WebSocket connection established");
-    let pty_system = NativePtySystem::default();
-
-    let pair = pty_system
-        .openpty(PtySize {
-            rows: 24,
-            cols: 80,
-            pixel_width: 0,
-            pixel_height: 0,
-        })
-        .expect("Failed to create PTY");
+    let mut my_cmd = MyCommand::new();
 
     let default_shell = std::env::var("SHELL").unwrap_or_else(|_| "bash".to_string());
     let shell = params.shell.unwrap_or(default_shell);
@@ -88,48 +79,34 @@ async fn handle_socket(socket: WebSocket, params: ConnectParams) {
         }
     }
 
-    let mut cmd_builder = portable_pty::CommandBuilder::new(&shell);
-
+    let mut full_cmd = shell.clone();
     if is_bash {
         if let Some((_, ref path_str)) = temp_script_path {
-            cmd_builder.args(&["--rcfile", path_str]);
+            full_cmd = format!("{} --rcfile {}", shell, path_str);
         }
-    }
-    // For pwsh, we often need -NoExit if we pass a file, but here we just spawn shell
-    // and rely on injection via stdin like zsh to avoid path complexity
-    if is_pwsh {
-        cmd_builder.args(&["-NoLogo", "-NoExit"]);
+    } else if is_pwsh {
+        full_cmd = format!("{} -NoLogo -NoExit", shell);
     }
 
-    cmd_builder.cwd(std::env::current_dir().unwrap());
-    cmd_builder.env("TERM", "xterm-256color");
-
-    let mut child_result = pair.slave.spawn_command(cmd_builder);
-
+    let spawn_result = my_cmd.spawn(&full_cmd);
+    
     // Fallback for pwsh -> powershell on Windows
-    if child_result.is_err() && shell == "pwsh" && cfg!(target_os = "windows") {
+    let mut actual_result = spawn_result;
+    if actual_result.is_err() && shell == "pwsh" && cfg!(target_os = "windows") {
         tracing::warn!("Failed to spawn pwsh, falling back to powershell");
-        let mut fallback_cmd = portable_pty::CommandBuilder::new("powershell");
-        fallback_cmd.args(&["-NoLogo", "-NoExit"]);
-        fallback_cmd.cwd(std::env::current_dir().unwrap());
-        fallback_cmd.env("TERM", "xterm-256color");
-        child_result = pair.slave.spawn_command(fallback_cmd);
+        actual_result = my_cmd.spawn("powershell -NoLogo -NoExit");
     }
 
-    let _child = match child_result {
-        Ok(child) => child,
+    let (mut reader, writer) = match actual_result {
+        Ok(rw) => rw,
         Err(e) => {
             tracing::error!("Failed to spawn shell: {}", e);
             return;
         }
     };
 
-    let master = pair.master;
-    let mut reader = master.try_clone_reader().expect("Failed to clone reader");
-    let writer = master.take_writer().expect("Failed to take writer");
-
     let writer = Arc::new(Mutex::new(writer));
-    let master = Arc::new(Mutex::new(master));
+    let master = Arc::new(Mutex::new(my_cmd));
 
     // Inject scripts for shells that don't support --rcfile easily or where we prefer dynamic loading
     if is_zsh {
@@ -366,13 +343,8 @@ async fn handle_socket(socket: WebSocket, params: ConnectParams) {
                             tracing::info!("Executed command: {}", data);
                         }
                         ClientMsg::Resize { cols, rows } => {
-                            if let Ok(m) = master_clone.lock() {
-                                let _ = m.resize(PtySize {
-                                    rows,
-                                    cols,
-                                    pixel_width: 0,
-                                    pixel_height: 0,
-                                });
+                            if let Ok(mut m) = master_clone.lock() {
+                                let _ = m.resize(cols, rows);
                             }
                             tracing::info!("Resized PTY to {} cols and {} rows", cols, rows);
                         }
