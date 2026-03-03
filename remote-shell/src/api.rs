@@ -50,6 +50,7 @@ async fn handle_socket(socket: WebSocket, params: ConnectParams) {
     let is_bash = shell.ends_with("bash");
     let is_zsh = shell.ends_with("zsh");
     let is_pwsh = shell.ends_with("pwsh") || shell.ends_with("powershell");
+    let is_cmd = shell.ends_with("cmd") || shell.ends_with("cmd.exe");
 
     // Extract shell integration script to a temporary file
     let mut temp_script_path = None;
@@ -79,6 +80,25 @@ async fn handle_socket(socket: WebSocket, params: ConnectParams) {
         }
     }
 
+    // For cmd.exe: install the Lua integration script into a temporary Clink profile
+    // directory and launch via `clink launch --profile <dir>`.
+    // The TempDir is kept alive for the duration of the WebSocket session (handle_socket)
+    // so Clink can continue to access its scripts until the connection closes.
+    let mut clink_profile_dir: Option<tempfile::TempDir> = None;
+    if is_cmd {
+        if let Some(content) = Asset::get("shell-integration.lua") {
+            if let Ok(dir) = tempfile::TempDir::new() {
+                let scripts_dir = dir.path().join("scripts");
+                if std::fs::create_dir_all(&scripts_dir).is_ok() {
+                    let lua_path = scripts_dir.join("remote-shell-integration.lua");
+                    if std::fs::write(&lua_path, &content.data).is_ok() {
+                        clink_profile_dir = Some(dir);
+                    }
+                }
+            }
+        }
+    }
+
     let mut args: Vec<String> = vec![];
     if is_bash {
         if let Some((_, ref path_str)) = temp_script_path {
@@ -88,7 +108,33 @@ async fn handle_socket(socket: WebSocket, params: ConnectParams) {
         args = vec!["-NoLogo".to_string(), "-NoExit".to_string()];
     }
 
-    let spawn_result = my_cmd.spawn(&shell, &args);
+    let spawn_result = if is_cmd {
+        // Try to launch via Clink for shell integration; fall back to plain cmd.exe.
+        if let Some(ref dir) = clink_profile_dir {
+            let profile_str = dir.path().to_string_lossy().to_string();
+            let clink_result = my_cmd.spawn(
+                "clink",
+                &[
+                    "launch".to_string(),
+                    "--profile".to_string(),
+                    profile_str,
+                ],
+            );
+            if let Err(ref e) = clink_result {
+                tracing::warn!(
+                    "Clink not available ({}), launching plain cmd.exe",
+                    e
+                );
+                my_cmd.spawn(&shell, &[] as &[String])
+            } else {
+                clink_result
+            }
+        } else {
+            my_cmd.spawn(&shell, &[] as &[String])
+        }
+    } else {
+        my_cmd.spawn(&shell, &args)
+    };
 
     // Fallback for pwsh -> powershell on Windows
     let mut actual_result = spawn_result;
@@ -342,9 +388,9 @@ async fn handle_socket(socket: WebSocket, params: ConnectParams) {
                             if let Ok(mut w) = writer_clone.lock() {
                                 // Just send the raw command. The shell integration (trap) will handle markers.
                                 // We add a newline to ensure execution.
-                                // For powershell, we might need \r\n
+                                // For powershell and cmd.exe, we need \r\n
                                 let cmd_str =
-                                    if shell.ends_with("pwsh") || shell.ends_with("powershell") {
+                                    if shell.ends_with("pwsh") || shell.ends_with("powershell") || is_cmd {
                                         format!("{}\r\n", data)
                                     } else {
                                         format!("{}\n", data)
