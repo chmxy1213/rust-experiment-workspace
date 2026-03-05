@@ -272,10 +272,7 @@ mod tests {
                     .mime_type("application/octet-stream"),
             );
 
-        let response = server
-            .post("/api/upload")
-            .multipart(multipart)
-            .await;
+        let response = server.post("/api/upload").multipart(multipart).await;
 
         response.assert_status_ok();
 

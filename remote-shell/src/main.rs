@@ -1,4 +1,5 @@
 use axum::{routing::get, Router};
+use clap::{Parser, Subcommand};
 use serde::{Deserialize, Serialize};
 
 use crate::api::{index_handler, ws_handler};
@@ -7,6 +8,7 @@ use crate::static_files::static_handler;
 mod api;
 mod command;
 mod static_files;
+mod windows_deps;
 
 #[derive(Serialize)]
 #[serde(tag = "type", rename_all = "camelCase")]
@@ -44,8 +46,34 @@ enum ClientMsg {
     },
 }
 
+#[derive(Parser)]
+#[command(author, version, about, long_about = None)]
+struct Cli {
+    #[command(subcommand)]
+    command: Option<Commands>,
+}
+
+#[derive(Subcommand)]
+enum Commands {
+    /// Install Windows dependencies (winpty and clink)
+    InstallDeps,
+}
+
 #[tokio::main]
 async fn main() {
+    let cli = Cli::parse();
+
+    match cli.command {
+        Some(Commands::InstallDeps) => {
+            if let Err(e) = windows_deps::install_deps() {
+                eprintln!("Failed to install dependencies: {}", e);
+                std::process::exit(1);
+            }
+            return;
+        }
+        None => {}
+    }
+
     tracing_subscriber::fmt::init();
 
     let app = Router::new()

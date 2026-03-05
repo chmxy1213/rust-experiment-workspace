@@ -1,14 +1,14 @@
 use glob::glob;
 use std::env;
 use std::env::consts::ARCH;
+use std::fs::File;
 use std::i64;
+use std::io::prelude::*;
+use std::io::BufReader;
+use std::io::SeekFrom::Start;
 use std::path::{Path, PathBuf};
 use std::process::Command;
-use std::fs::File;
 use std::str;
-use std::io::BufReader;
-use std::io::prelude::*;
-use std::io::SeekFrom::Start;
 use which::which;
 #[cfg(windows)]
 use windows::core::{PCSTR, PCWSTR, PSTR, PWSTR};
@@ -18,45 +18,43 @@ use windows_bindgen::bindgen;
 use enum_primitive_derive::Primitive;
 use num_traits::{FromPrimitive, ToPrimitive};
 
-
 #[derive(Debug, Eq, PartialEq, Primitive)]
 enum PEMachineType {
-    UNKNOWN	= 0x0,
-    ALPHA	= 0x184,
-    ALPHA64	= 0x284,
-    AM33	= 0x1d3,
-    AMD64	= 0x8664,
-    ARM	= 0x1c0,
-    ARM64	= 0xaa64,
-    ARM64EC	= 0xA641,
-    ARM64X	= 0xA64E,
-    ARMNT	= 0x1c4,
-    EBC	= 0xebc,
-    I386	= 0x14c,
-    IA64	= 0x200,
-    LOONGARCH32	= 0x6232,
-    LOONGARCH64	= 0x6264,
-    M32R	= 0x9041,
-    MIPS16	= 0x266,
-    MIPSFPU	= 0x366,
-    MIPSFPU16	= 0x466,
-    POWERPC	= 0x1f0,
-    POWERPCFP	= 0x1f1,
-    R3000BE	= 0x160,
-    R3000	= 0x162,
-    R4000	= 0x166,
-    R10000	= 0x168,
-    RISCV32	= 0x5032,
-    RISCV64	= 0x5064,
-    RISCV128	= 0x5128,
-    SH3	= 0x1a2,
-    SH3DSP	= 0x1a3,
-    SH4	= 0x1a6,
-    SH5	= 0x1a8,
-    THUMB	= 0x1c2,
-    WCEMIPSV2	= 0x169,
+    UNKNOWN = 0x0,
+    ALPHA = 0x184,
+    ALPHA64 = 0x284,
+    AM33 = 0x1d3,
+    AMD64 = 0x8664,
+    ARM = 0x1c0,
+    ARM64 = 0xaa64,
+    ARM64EC = 0xA641,
+    ARM64X = 0xA64E,
+    ARMNT = 0x1c4,
+    EBC = 0xebc,
+    I386 = 0x14c,
+    IA64 = 0x200,
+    LOONGARCH32 = 0x6232,
+    LOONGARCH64 = 0x6264,
+    M32R = 0x9041,
+    MIPS16 = 0x266,
+    MIPSFPU = 0x366,
+    MIPSFPU16 = 0x466,
+    POWERPC = 0x1f0,
+    POWERPCFP = 0x1f1,
+    R3000BE = 0x160,
+    R3000 = 0x162,
+    R4000 = 0x166,
+    R10000 = 0x168,
+    RISCV32 = 0x5032,
+    RISCV64 = 0x5064,
+    RISCV128 = 0x5128,
+    SH3 = 0x1a2,
+    SH3DSP = 0x1a3,
+    SH4 = 0x1a6,
+    SH5 = 0x1a8,
+    THUMB = 0x1c2,
+    WCEMIPSV2 = 0x169,
 }
-
 
 #[cfg(windows)]
 trait IntoPWSTR {
@@ -188,7 +186,7 @@ fn check_dll_arch_validity(dll_path: PathBuf, cur_arch: &str) -> bool {
         PEMachineType::ARM64 => cur_arch == "arm64",
         PEMachineType::ARM64EC => cur_arch == "x64",
         PEMachineType::ARM64X => cur_arch == "x64" || cur_arch == "arm64",
-        _ => false
+        _ => false,
     }
 }
 
@@ -227,7 +225,7 @@ fn main() {
             "--filter",
             "NtCreateNamedPipeFile",
             "--reference",
-            "windows"
+            "windows",
         ];
 
         _ = bindgen(args);
@@ -289,7 +287,6 @@ fn main() {
                 fs::create_dir_all(&lib_path).unwrap();
             }
 
-
             let mut binaries_found = true;
             for bin_name in ["conpty.lib", "conpty.dll", "OpenConsole.exe"] {
                 let bin_path = lib_path.join(bin_name);
@@ -307,7 +304,7 @@ fn main() {
                 }
 
                 if command_ok(
-                     Command::new("nuget.exe")
+                    Command::new("nuget.exe")
                         .current_dir(current_path.to_str().unwrap())
                         .arg("install")
                         .arg("Microsoft.Windows.Console.ConPTY"),
@@ -398,7 +395,7 @@ fn main() {
 
             winpty_enabled = match valid_arch {
                 true => "1",
-                false => "0"
+                false => "0",
             };
 
             if valid_arch {

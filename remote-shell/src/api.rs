@@ -114,17 +114,10 @@ async fn handle_socket(socket: WebSocket, params: ConnectParams) {
             let profile_str = dir.path().to_string_lossy().to_string();
             let clink_result = my_cmd.spawn(
                 "clink",
-                &[
-                    "launch".to_string(),
-                    "--profile".to_string(),
-                    profile_str,
-                ],
+                &["launch".to_string(), "--profile".to_string(), profile_str],
             );
             if let Err(ref e) = clink_result {
-                tracing::warn!(
-                    "Clink not available ({}), launching plain cmd.exe",
-                    e
-                );
+                tracing::warn!("Clink not available ({}), launching plain cmd.exe", e);
                 my_cmd.spawn(&shell, &[] as &[String])
             } else {
                 clink_result
@@ -389,12 +382,14 @@ async fn handle_socket(socket: WebSocket, params: ConnectParams) {
                                 // Just send the raw command. The shell integration (trap) will handle markers.
                                 // We add a newline to ensure execution.
                                 // For powershell and cmd.exe, we need \r\n
-                                let cmd_str =
-                                    if shell.ends_with("pwsh") || shell.ends_with("powershell") || is_cmd {
-                                        format!("{}\r\n", data)
-                                    } else {
-                                        format!("{}\n", data)
-                                    };
+                                let cmd_str = if shell.ends_with("pwsh")
+                                    || shell.ends_with("powershell")
+                                    || is_cmd
+                                {
+                                    format!("{}\r\n", data)
+                                } else {
+                                    format!("{}\n", data)
+                                };
                                 let _ = w.write_all(cmd_str.as_bytes());
                                 let _ = w.flush();
                             }

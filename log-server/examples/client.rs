@@ -5,7 +5,11 @@ use tokio::fs;
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // 1. 准备要上传的文件
     let file_path = "test_client.log";
-    fs::write(file_path, "This is a test log from Rust client.\nINFO: Everything is fine.").await?;
+    fs::write(
+        file_path,
+        "This is a test log from Rust client.\nINFO: Everything is fine.",
+    )
+    .await?;
 
     // 2. 读取文件内容
     let file_content = fs::read(file_path).await?;
