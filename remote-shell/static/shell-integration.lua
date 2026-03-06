@@ -14,13 +14,21 @@ local function get_cwd()
     return os.getcwd()
 end
 
+local function write_diag(message)
+    if log and log.info then
+        pcall(log.info, "[remote-shell] " .. message)
+    end
+end
+
+write_diag("integration script loaded; cwd=" .. tostring(get_cwd()))
+
 -- =============================================================================
 -- Clink v1.x+ API (Modern)
 -- =============================================================================
 
 if clink.onbeginedit and clink.onendedit then
-    clink.onendedit(function(line_state)
-        local line = line_state:getText()
+    clink.onendedit(function(line)
+        write_diag("onendedit fired; line=" .. tostring(line))
         if line and line:match("%S") then
             -- START signal
             local user = os.getenv("USERNAME") or "user"
@@ -28,12 +36,12 @@ if clink.onbeginedit and clink.onendedit then
             local cwd = get_cwd()
             emit_osc("START;" .. user .. ";" .. host .. ";" .. cwd)
         end
-        return line_state -- Must return
     end)
 
     clink.onbeginedit(function()
         -- END signal (Post-exec)
         local exit_code = os.geterrorlevel and os.geterrorlevel() or 0
+        write_diag("onbeginedit fired; exit_code=" .. tostring(exit_code))
         emit_osc("END;" .. tostring(exit_code))
     end)
 
@@ -43,12 +51,14 @@ if clink.onbeginedit and clink.onendedit then
 else
     -- In v0.4.9, we lack explicit pre-exec hooks (onendedit).
     -- We can only reliably hook the prompt display (Post-exec).
+    write_diag("legacy Clink API detected")
 
     local function legacy_prompt_filter()
         -- 1. Emit END signal for previous command
         -- v0.4.9 unfortunately makes getting the errorlevel tricky from Lua.
         -- We'll assume 0 or try to parse it if exposed, but usually it's not.
         -- We emit '0' or '?' as placeholder.
+        write_diag("legacy prompt filter fired")
         emit_osc("END;0")
 
         -- 2. Emit START signal logic is hard here because we are at PROMPT display.

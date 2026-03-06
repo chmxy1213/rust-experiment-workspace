@@ -6,6 +6,9 @@ use std::{
     thread,
 };
 
+#[cfg(windows)]
+use std::path::{Path, PathBuf};
+
 use axum::{
     extract::{
         ws::{Message, WebSocket, WebSocketUpgrade},
@@ -20,6 +23,176 @@ use tokio::sync::mpsc;
 use crate::command::MyCommand;
 use crate::static_files::Asset;
 use crate::{ClientMsg, ServerLogMsg};
+
+#[cfg(windows)]
+fn clink_binary_name() -> &'static str {
+    if cfg!(target_arch = "x86_64") {
+        "clink_x64.exe"
+    } else if cfg!(target_arch = "x86") {
+        "clink_x86.exe"
+    } else if cfg!(target_arch = "aarch64") {
+        "clink_arm64.exe"
+    } else {
+        "clink_x64.exe"
+    }
+}
+
+#[cfg(windows)]
+fn clink_binary_candidates() -> Vec<&'static str> {
+    let mut candidates = vec![clink_binary_name(), "clink.exe", "clink.bat"];
+    candidates.dedup();
+    candidates
+}
+
+#[cfg(windows)]
+fn clink_search_roots() -> Vec<PathBuf> {
+    let mut roots = Vec::new();
+
+    if let Ok(exe_path) = std::env::current_exe() {
+        if let Some(exe_dir) = exe_path.parent() {
+            roots.push(exe_dir.to_path_buf());
+            if let Some(parent) = exe_dir.parent() {
+                roots.push(parent.to_path_buf());
+            }
+        }
+    }
+
+    if let Ok(cwd) = std::env::current_dir() {
+        roots.push(cwd);
+    }
+
+    roots
+}
+
+#[cfg(windows)]
+fn clink_search_directories() -> Vec<PathBuf> {
+    let mut dirs = Vec::new();
+
+    for root in clink_search_roots() {
+        dirs.push(root.join("clink"));
+    }
+
+    if let Some(path_var) = std::env::var_os("PATH") {
+        dirs.extend(std::env::split_paths(&path_var));
+    }
+
+    for env_name in ["ProgramFiles", "ProgramW6432", "ProgramFiles(x86)"] {
+        if let Some(base) = std::env::var_os(env_name) {
+            dirs.push(PathBuf::from(base).join("clink"));
+        }
+    }
+
+    if let Some(local_app_data) = std::env::var_os("LOCALAPPDATA") {
+        let base = PathBuf::from(local_app_data);
+        dirs.push(base.join("Programs").join("clink"));
+        dirs.push(base.join("Microsoft").join("WinGet").join("Packages"));
+    }
+
+    let mut deduped = Vec::new();
+    for dir in dirs {
+        if !deduped.iter().any(|existing| existing == &dir) {
+            deduped.push(dir);
+        }
+    }
+
+    deduped
+}
+
+#[cfg(windows)]
+fn find_clink_executable() -> Option<PathBuf> {
+    for dir in clink_search_directories() {
+        for binary_name in clink_binary_candidates() {
+            let candidate = dir.join(binary_name);
+            if candidate.is_file() {
+                return Some(candidate);
+            }
+        }
+    }
+
+    if let Some(local_app_data) = std::env::var_os("LOCALAPPDATA") {
+        let packages_dir = PathBuf::from(local_app_data)
+            .join("Microsoft")
+            .join("WinGet")
+            .join("Packages");
+        if let Ok(entries) = std::fs::read_dir(packages_dir) {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                let name = entry.file_name();
+                let name = name.to_string_lossy().to_lowercase();
+                if !name.contains("clink") {
+                    continue;
+                }
+
+                for suffix in ["", "clink"] {
+                    let base = if suffix.is_empty() {
+                        path.clone()
+                    } else {
+                        path.join(suffix)
+                    };
+
+                    for binary_name in clink_binary_candidates() {
+                        let candidate = base.join(binary_name);
+                        if candidate.is_file() {
+                            return Some(candidate);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    None
+}
+
+#[cfg(windows)]
+fn quote_cmd_arg(arg: &Path) -> String {
+    format!("\"{}\"", arg.to_string_lossy())
+}
+
+#[cfg(windows)]
+fn build_clink_inject_args(profile_dir: &Path) -> Option<(String, Vec<String>)> {
+    let clink_exe = find_clink_executable()?;
+    tracing::info!("Using Clink executable: {}", clink_exe.display());
+
+    let launcher_path = profile_dir.join("remote-shell-clink-inject.cmd");
+    let launcher_log_path = profile_dir.join("remote-shell-clink-inject.log");
+    let launcher_script = format!(
+        concat!(
+            "@echo off\r\n",
+            ">> {} echo launcher_start %DATE% %TIME%\r\n",
+            "{} inject --profile {}\r\n",
+            "set REMOTE_SHELL_CLINK_INJECT_EXIT=%ERRORLEVEL%\r\n",
+            ">> {} echo launcher_end %DATE% %TIME% exit=%REMOTE_SHELL_CLINK_INJECT_EXIT%\r\n"
+        ),
+        quote_cmd_arg(&launcher_log_path),
+        quote_cmd_arg(&clink_exe),
+        quote_cmd_arg(profile_dir),
+        quote_cmd_arg(&launcher_log_path)
+    );
+
+    if std::fs::write(&launcher_path, launcher_script).is_err() {
+        tracing::warn!(
+            "Failed to write Clink launcher script: {}",
+            launcher_path.display()
+        );
+        return None;
+    }
+
+    tracing::info!(
+        "Prepared Clink launcher script: {} (log: {})",
+        launcher_path.display(),
+        launcher_log_path.display()
+    );
+
+    Some((
+        "cmd.exe".to_string(),
+        vec![
+            "/d".to_string(),
+            "/k".to_string(),
+            launcher_path.to_string_lossy().to_string(),
+        ],
+    ))
+}
 
 #[derive(Deserialize)]
 pub struct ConnectParams {
@@ -80,20 +253,31 @@ async fn handle_socket(socket: WebSocket, params: ConnectParams) {
         }
     }
 
-    // For cmd.exe: install the Lua integration script into a temporary Clink profile
-    // directory and launch via `clink launch --profile <dir>`.
-    // The TempDir is kept alive for the duration of the WebSocket session (handle_socket)
-    // so Clink can continue to access its scripts until the connection closes.
+    // For cmd.exe on Windows: install the Lua integration script into a temporary
+    // Clink profile directory. We then inject Clink into the PTY-hosted cmd.exe session.
+    // The TempDir is kept alive for the duration of the WebSocket session so Clink
+    // can continue to access its scripts until the connection closes.
+    #[cfg(windows)]
     let mut clink_profile_dir: Option<tempfile::TempDir> = None;
+    #[cfg(windows)]
     if is_cmd {
         if let Some(content) = Asset::get("shell-integration.lua") {
             if let Ok(dir) = tempfile::TempDir::new() {
-                let scripts_dir = dir.path().join("scripts");
-                if std::fs::create_dir_all(&scripts_dir).is_ok() {
-                    let lua_path = scripts_dir.join("remote-shell-integration.lua");
-                    if std::fs::write(&lua_path, &content.data).is_ok() {
-                        clink_profile_dir = Some(dir);
-                    }
+                let lua_path = dir.path().join("remote-shell-integration.lua");
+                let startup_cmd_path = dir.path().join("clink_start.cmd");
+                let startup_cmd = concat!(
+                    "@echo off\r\n",
+                    ">> \"%~dp0remote-shell-clink-startup.log\" echo clink_start %%DATE%% %%TIME%%\r\n"
+                );
+                if std::fs::write(&lua_path, &content.data).is_ok() {
+                    let _ = std::fs::write(&startup_cmd_path, startup_cmd);
+                    tracing::info!(
+                        "Prepared temporary Clink profile: {} (integration script: {}, startup script: {})",
+                        dir.path().display(),
+                        lua_path.display(),
+                        startup_cmd_path.display()
+                    );
+                    clink_profile_dir = Some(dir);
                 }
             }
         }
@@ -109,20 +293,27 @@ async fn handle_socket(socket: WebSocket, params: ConnectParams) {
     }
 
     let spawn_result = if is_cmd {
-        // Try to launch via Clink for shell integration; fall back to plain cmd.exe.
-        if let Some(ref dir) = clink_profile_dir {
-            let profile_str = dir.path().to_string_lossy().to_string();
-            let clink_result = my_cmd.spawn(
-                "clink",
-                &["launch".to_string(), "--profile".to_string(), profile_str],
-            );
-            if let Err(ref e) = clink_result {
-                tracing::warn!("Clink not available ({}), launching plain cmd.exe", e);
-                my_cmd.spawn(&shell, &[] as &[String])
+        // On Windows, Clink must be injected into the current cmd.exe session.
+        // `clink.bat launch` starts a separate console window, which does not work under a PTY.
+        #[cfg(windows)]
+        {
+            if let Some(ref dir) = clink_profile_dir {
+                if let Some((cmd, args)) = build_clink_inject_args(dir.path()) {
+                    tracing::info!("Launching cmd.exe with Clink injection: {}", cmd);
+                    my_cmd.spawn(&cmd, &args)
+                } else {
+                    tracing::warn!(
+                        "Clink executable not found in bundled, PATH, or common install directories; launching plain cmd.exe"
+                    );
+                    my_cmd.spawn("cmd.exe", &[] as &[String])
+                }
             } else {
-                clink_result
+                my_cmd.spawn("cmd.exe", &[] as &[String])
             }
-        } else {
+        }
+
+        #[cfg(not(windows))]
+        {
             my_cmd.spawn(&shell, &[] as &[String])
         }
     } else {
