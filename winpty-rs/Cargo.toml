@@ -86,3 +86,6 @@ required-features = ["winpty_example"]
 name = "conpty_example"
 path = "src/examples/conpty.rs"
 required-features = ["conpty_example"]
+
+[lints.rust]
+warnings = "allow"
