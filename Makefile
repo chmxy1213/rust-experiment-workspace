@@ -18,9 +18,9 @@ windows:
 
 # Build for Windows 7 x86-64 (MSVC) using cargo-xwin
 # Note: Rust 1.78+ dropped support for Windows 7.
-# To build for Windows 7, we use Rust 1.77.2.
+# To build for Windows 7, we use Rust nightly.
 windows7:
-	@echo "Building for Windows 7 x86-64 (MSVC) using Rust 1.77.2..."
+	@echo "Building for Windows 7 x86-64 (MSVC) using cargo-xwin with Rust nightly..."
 	RUSTUP_DIST_SERVER="https://rsproxy.cn" RUSTUP_UPDATE_ROOT="https://rsproxy.cn/rustup" rustup component add llvm-tools-preview --toolchain nightly
 	cargo +nightly xwin build --target x86_64-win7-windows-msvc --release -Z build-std
 
