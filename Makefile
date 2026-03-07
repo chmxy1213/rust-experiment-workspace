@@ -21,7 +21,7 @@ windows:
 # To build for Windows 7, we use Rust nightly.
 windows7:
 	@echo "Building for Windows 7 x86-64 (MSVC) using cargo-xwin with Rust nightly..."
-	RUSTUP_DIST_SERVER="https://rsproxy.cn" RUSTUP_UPDATE_ROOT="https://rsproxy.cn/rustup" rustup component add llvm-tools-preview --toolchain nightly
+	RUSTUP_DIST_SERVER="https://rsproxy.cn" RUSTUP_UPDATE_ROOT="https://rsproxy.cn/rustup" rustup component add llvm-tools-preview rust-src --toolchain nightly
 	cargo +nightly xwin build --target x86_64-win7-windows-msvc --release -Z build-std
 
 # Clean build artifacts
