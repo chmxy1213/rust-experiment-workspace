@@ -2,6 +2,7 @@
 
 use std::{
     io::{Read, Write},
+    sync::atomic::{AtomicBool, Ordering},
     sync::{Arc, Mutex},
     thread,
 };
@@ -23,6 +24,8 @@ use tokio::sync::mpsc;
 use crate::command::MyCommand;
 use crate::static_files::Asset;
 use crate::{ClientMsg, ServerLogMsg};
+
+const POWERSHELL_FALLBACK_END_MARKER: &str = "__REMOTE_SHELL_END_3f5f9b7d__:";
 
 #[cfg(windows)]
 fn clink_binary_name() -> &'static str {
@@ -218,12 +221,25 @@ async fn handle_socket(socket: WebSocket, params: ConnectParams) {
     tracing::info!("New WebSocket connection established");
     let mut my_cmd = MyCommand::new();
 
-    let default_shell = std::env::var("SHELL").unwrap_or_else(|_| "bash".to_string());
-    let shell = params.shell.unwrap_or(default_shell);
+    let default_shell = if cfg!(windows) {
+        "cmd".to_string()
+    } else {
+        std::env::var("SHELL").unwrap_or_else(|_| "bash".to_string())
+    };
+    let mut shell = params.shell.unwrap_or(default_shell);
+    if cfg!(windows) && matches!(shell.as_str(), "bash" | "zsh" | "sh") {
+        tracing::warn!(
+            "Requested shell '{}' is not a supported default on Windows; falling back to cmd",
+            shell
+        );
+        shell = "cmd".to_string();
+    }
     let is_bash = shell.ends_with("bash");
     let is_zsh = shell.ends_with("zsh");
     let is_pwsh = shell.ends_with("pwsh") || shell.ends_with("powershell");
     let is_cmd = shell.ends_with("cmd") || shell.ends_with("cmd.exe");
+    let needs_powershell_fallback_capture = cfg!(windows)
+        && (shell == "powershell" || shell.ends_with("powershell.exe"));
 
     // Extract shell integration script to a temporary file
     let mut temp_script_path = None;
@@ -372,12 +388,15 @@ async fn handle_socket(socket: WebSocket, params: ConnectParams) {
 
     let (tx_output, mut rx_output) = mpsc::channel::<Vec<u8>>(32);
     let (tx_log, mut rx_log) = mpsc::channel::<ServerLogMsg>(32);
+    let tx_log_for_commands = tx_log.clone();
+    let force_capture = Arc::new(AtomicBool::new(false));
+    let force_capture_for_reader = force_capture.clone();
 
     // Spawn blocking thread for reading PTY
     thread::spawn(move || {
         let mut buf = [0u8; 2048];
         let mut parser = vte::Parser::new();
-        let mut interpreter = LogInterpreter::new(tx_log);
+        let mut interpreter = LogInterpreter::new(tx_log, force_capture_for_reader);
 
         loop {
             match reader.read(&mut buf) {
@@ -431,35 +450,100 @@ async fn handle_socket(socket: WebSocket, params: ConnectParams) {
         tx_log: mpsc::Sender<ServerLogMsg>,
         capturing: bool,
         buffer: String,
+        force_capture: Arc<AtomicBool>,
     }
 
     impl LogInterpreter {
-        fn new(tx_log: mpsc::Sender<ServerLogMsg>) -> Self {
+        fn new(tx_log: mpsc::Sender<ServerLogMsg>, force_capture: Arc<AtomicBool>) -> Self {
             Self {
                 tx_log,
                 capturing: false,
                 buffer: String::new(),
+                force_capture,
+            }
+        }
+
+        fn is_capturing(&self) -> bool {
+            self.capturing || self.force_capture.load(Ordering::Acquire)
+        }
+
+        fn finish_capture(&mut self, exit_code: i32) {
+            let _ = self
+                .tx_log
+                .blocking_send(ServerLogMsg::LogEnd { exit_code });
+            self.capturing = false;
+            self.force_capture.store(false, Ordering::Release);
+        }
+
+        fn flush_plain_text(&mut self, text: String) {
+            if !text.is_empty() {
+                let _ = self.tx_log.blocking_send(ServerLogMsg::LogOutput { data: text });
+            }
+        }
+
+        fn flush_powershell_fallback(&mut self) {
+            let marker = POWERSHELL_FALLBACK_END_MARKER;
+
+            loop {
+                let Some(marker_index) = self.buffer.find(marker) else {
+                    break;
+                };
+
+                let suffix_start = marker_index + marker.len();
+                let Some(line_end_rel) = self.buffer[suffix_start..].find('\n') else {
+                    break;
+                };
+
+                let line_end = suffix_start + line_end_rel;
+                let before_marker = self.buffer[..marker_index].to_string();
+                self.flush_plain_text(before_marker);
+
+                let exit_code_text = self.buffer[suffix_start..line_end].trim();
+                let exit_code = exit_code_text.parse::<i32>().unwrap_or(1);
+
+                self.buffer.drain(..line_end + 1);
+                tracing::info!(
+                    "Received classic PowerShell fallback end marker with exit code {}",
+                    exit_code
+                );
+                self.finish_capture(exit_code);
+            }
+
+            if self.is_capturing() {
+                let keep_len = marker.len().saturating_sub(1);
+                if self.buffer.len() > keep_len {
+                    let flush_upto = self.buffer.len() - keep_len;
+                    let text = self.buffer[..flush_upto].to_string();
+                    self.buffer.drain(..flush_upto);
+                    self.flush_plain_text(text);
+                }
+            } else {
+                let text = std::mem::take(&mut self.buffer);
+                self.flush_plain_text(text);
             }
         }
 
         fn flush(&mut self) {
             if !self.buffer.is_empty() {
-                let _ = self.tx_log.blocking_send(ServerLogMsg::LogOutput {
-                    data: std::mem::take(&mut self.buffer),
-                });
+                if self.force_capture.load(Ordering::Acquire) {
+                    self.flush_powershell_fallback();
+                } else {
+                    let text = std::mem::take(&mut self.buffer);
+                    self.flush_plain_text(text);
+                }
             }
         }
     }
 
     impl vte::Perform for LogInterpreter {
         fn print(&mut self, c: char) {
-            if self.capturing {
+            if self.is_capturing() {
                 self.buffer.push(c);
             }
         }
 
         fn execute(&mut self, byte: u8) {
-            if self.capturing {
+            if self.is_capturing() {
                 // Handle basic control chars that are useful in logs: \n, \t, \r
                 if byte == b'\n' {
                     self.buffer.push('\n');
@@ -491,7 +575,9 @@ async fn handle_socket(socket: WebSocket, params: ConnectParams) {
                     let cmd = params[1];
 
                     if cmd == b"START" {
+                        tracing::info!("Received OSC 6973 START from shell integration");
                         self.capturing = true;
+                        self.force_capture.store(false, Ordering::Release);
                         self.buffer.clear();
 
                         // Parse Context: params[2]=USER, params[3]=HOST, params[4..]=CWD
@@ -518,6 +604,7 @@ async fn handle_socket(socket: WebSocket, params: ConnectParams) {
                             self.tx_log
                                 .blocking_send(ServerLogMsg::LogStart { user, host, cwd });
                     } else if cmd.starts_with(b"END") {
+                        tracing::info!("Received OSC 6973 END from shell integration");
                         // Flush pending buffer first
                         self.flush();
 
@@ -542,10 +629,7 @@ async fn handle_socket(socket: WebSocket, params: ConnectParams) {
                             }
                         }
 
-                        let _ = self
-                            .tx_log
-                            .blocking_send(ServerLogMsg::LogEnd { exit_code });
-                        self.capturing = false;
+                        self.finish_capture(exit_code);
                     }
                 }
             }
@@ -569,11 +653,36 @@ async fn handle_socket(socket: WebSocket, params: ConnectParams) {
                             tracing::info!("Received input: {}", data);
                         }
                         ClientMsg::Run { data, id: _ } => {
+                            if needs_powershell_fallback_capture {
+                                force_capture.store(true, Ordering::Release);
+
+                                let user = std::env::var("USERNAME")
+                                    .or_else(|_| std::env::var("USER"))
+                                    .unwrap_or_else(|_| "user".to_string());
+                                let host = std::env::var("COMPUTERNAME")
+                                    .unwrap_or_else(|_| "host".to_string());
+                                let cwd = std::env::current_dir()
+                                    .map(|path| path.to_string_lossy().to_string())
+                                    .unwrap_or_default();
+
+                                let _ = tx_log_for_commands.try_send(ServerLogMsg::LogStart {
+                                    user,
+                                    host,
+                                    cwd,
+                                });
+                            }
+
                             if let Ok(mut w) = writer_clone.lock() {
                                 // Just send the raw command. The shell integration (trap) will handle markers.
                                 // We add a newline to ensure execution.
                                 // For powershell and cmd.exe, we need \r\n
-                                let cmd_str = if shell.ends_with("pwsh")
+                                let cmd_str = if needs_powershell_fallback_capture {
+                                    format!(
+                                        "& {{ {} ; $global:__rs_exit = if ($?) {{ if ($null -ne $global:LASTEXITCODE) {{ $global:LASTEXITCODE }} else {{ 0 }} }} else {{ if ($null -ne $global:LASTEXITCODE) {{ $global:LASTEXITCODE }} else {{ 1 }} }}; [Console]::Out.WriteLine('{}' + $global:__rs_exit) }}\r\n",
+                                        data,
+                                        POWERSHELL_FALLBACK_END_MARKER
+                                    )
+                                } else if shell.ends_with("pwsh")
                                     || shell.ends_with("powershell")
                                     || is_cmd
                                 {

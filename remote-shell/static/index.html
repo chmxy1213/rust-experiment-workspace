@@ -210,7 +210,7 @@
             </div>
             <div style="margin-bottom: 10px; font-size: 12px;">
                 <label style="display: flex; align-items: center; cursor: pointer;">
-                    <input type="checkbox" id="chk-term-input" style="margin-right: 6px;">
+                    <input type="checkbox" id="chk-term-input" checked style="margin-right: 6px;">
                     Enable Terminal Input
                 </label>
             </div>
@@ -248,7 +248,7 @@
             fontSize: 14,
             theme: { background: '#000000' },
             allowProposedApi: true,
-            disableStdin: true // Disable user input in the terminal
+            disableStdin: false
         });
         const fitAddon = new FitAddon.FitAddon();
         term.loadAddon(fitAddon);
@@ -263,6 +263,11 @@
 
         term.open(document.getElementById('terminal'));
         fitAddon.fit();
+        term.focus();
+
+        document.getElementById('terminal-container').addEventListener('click', () => {
+            term.focus();
+        });
 
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         let ws;
@@ -276,6 +281,13 @@
         const shellSelect = document.getElementById('shell-select');
         const btnReconnect = document.getElementById('btn-reconnect');
         const chkTermInput = document.getElementById('chk-term-input');
+
+        chkTermInput.checked = true;
+        term.options.disableStdin = false;
+
+        if (navigator.platform && navigator.platform.toLowerCase().includes('win')) {
+            shellSelect.value = 'cmd';
+        }
 
         // Initial state logic for terminal input
         chkTermInput.addEventListener('change', (e) => {
@@ -298,6 +310,7 @@
 
             ws.onopen = () => {
                 term.write('\x1b[32m[Connected to ' + shell + ']\r\n\x1b[0m');
+                term.focus();
                 ws.send(JSON.stringify({ type: 'resize', cols: term.cols, rows: term.rows }));
             };
 

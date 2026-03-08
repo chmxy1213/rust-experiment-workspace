@@ -136,9 +136,49 @@ pub mod portable_pty_impl {
 #[cfg(windows)]
 pub mod winpty_impl {
     use super::{Reader, Writer};
+    use std::ffi::{OsStr, OsString};
     use std::io::{self, Read, Write};
+    use std::path::{Path, PathBuf};
     use std::sync::{Arc, Mutex};
+    use std::time::Duration;
     use winptyrs::{PTYArgs, PTYBackend, PTY};
+
+    fn quote_windows_arg(arg: &OsStr) -> String {
+        let text = arg.to_string_lossy();
+        if text.is_empty() {
+            return "\"\"".to_string();
+        }
+
+        let needs_quotes = text.chars().any(|c| c == ' ' || c == '\t' || c == '"');
+        if !needs_quotes {
+            return text.into_owned();
+        }
+
+        let escaped = text.replace('"', "\\\"");
+        format!("\"{}\"", escaped)
+    }
+
+    fn resolve_windows_shell_path(cmd: &str) -> OsString {
+        let cmd_lower = cmd.to_ascii_lowercase();
+        let path = Path::new(cmd);
+        if path.components().count() > 1 {
+            return OsString::from(cmd);
+        }
+
+        let system_root = std::env::var_os("SystemRoot").unwrap_or_else(|| OsString::from("C:\\Windows"));
+        let system_root = PathBuf::from(system_root);
+
+        match cmd_lower.as_str() {
+            "cmd" | "cmd.exe" => system_root.join("System32").join("cmd.exe").into_os_string(),
+            "powershell" | "powershell.exe" => system_root
+                .join("System32")
+                .join("WindowsPowerShell")
+                .join("v1.0")
+                .join("powershell.exe")
+                .into_os_string(),
+            _ => OsString::from(cmd),
+        }
+    }
 
     pub struct WinPtyAdapter {
         pty: Option<Arc<Mutex<PTY>>>,
@@ -154,12 +194,22 @@ pub mod winpty_impl {
             I: IntoIterator<Item = S>,
             S: AsRef<std::ffi::OsStr>,
         {
-            let mut args_str = String::from(cmd);
-            for arg in args {
-                let arg_str = arg.as_ref().to_string_lossy();
-                args_str.push(' ');
-                args_str.push_str(&arg_str);
-            }
+            let app = resolve_windows_shell_path(cmd);
+            let arg_values: Vec<OsString> = args
+                .into_iter()
+                .map(|arg| arg.as_ref().to_os_string())
+                .collect();
+            let cmdline = if arg_values.is_empty() {
+                None
+            } else {
+                Some(OsString::from(
+                    arg_values
+                        .iter()
+                        .map(|arg| quote_windows_arg(arg.as_os_str()))
+                        .collect::<Vec<_>>()
+                        .join(" "),
+                ))
+            };
 
             let mut args_pty = PTYArgs::default();
             args_pty.cols = 80;
@@ -168,9 +218,15 @@ pub mod winpty_impl {
             let mut pty = PTY::new_with_backend(&args_pty, PTYBackend::WinPTY)
                 .map_err(|e| anyhow::anyhow!("Failed to create winpty: {:?}", e))?;
 
+            tracing::info!(
+                "Spawning WinPTY process: app={} cmdline={:?}",
+                PathBuf::from(&app).display(),
+                cmdline.as_ref().map(|s| s.to_string_lossy().to_string())
+            );
+
             pty.spawn(
-                std::ffi::OsString::from(cmd),
-                Some(std::ffi::OsString::from(args_str)),
+                app,
+                cmdline,
                 None,
                 None,
             )
@@ -200,18 +256,30 @@ pub mod winpty_impl {
     // WinPTY 要求实现 std::io::Read，因为 winpty-rs 的 read(&self, blocking) 直接返回 OsString。
     impl Read for WinPtyReader {
         fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-            let pty = self.0.lock().unwrap();
-            match pty.read(true) {
-                Ok(os_string) => {
-                    let s = os_string
-                        .into_string()
-                        .map_err(|_| io::Error::new(io::ErrorKind::InvalidData, "Invalid UTF-8"))?;
-                    let bytes = s.as_bytes();
-                    let len = std::cmp::min(buf.len(), bytes.len());
-                    buf[..len].copy_from_slice(&bytes[..len]);
-                    Ok(len)
+            loop {
+                let read_result = {
+                    let pty = self.0.lock().unwrap();
+                    pty.read(false)
+                };
+
+                match read_result {
+                    Ok(os_string) => {
+                        let s = os_string.into_string().map_err(|_| {
+                            io::Error::new(io::ErrorKind::InvalidData, "Invalid UTF-8")
+                        })?;
+
+                        if s.is_empty() {
+                            std::thread::sleep(Duration::from_millis(10));
+                            continue;
+                        }
+
+                        let bytes = s.as_bytes();
+                        let len = std::cmp::min(buf.len(), bytes.len());
+                        buf[..len].copy_from_slice(&bytes[..len]);
+                        return Ok(len);
+                    }
+                    Err(e) => return Err(io::Error::new(io::ErrorKind::Other, format!("{:?}", e))),
                 }
-                Err(e) => Err(io::Error::new(io::ErrorKind::Other, format!("{:?}", e))),
             }
         }
     }
