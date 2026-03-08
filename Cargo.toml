@@ -6,6 +6,7 @@ members = [
     "remote-shell",
     "helicopter-flight-control",
     "loki-demo",
+    "signoz-demo",
     "log-server",
     "winpty-rs",
 ]

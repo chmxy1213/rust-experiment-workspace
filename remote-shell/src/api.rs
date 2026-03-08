@@ -238,8 +238,8 @@ async fn handle_socket(socket: WebSocket, params: ConnectParams) {
     let is_zsh = shell.ends_with("zsh");
     let is_pwsh = shell.ends_with("pwsh") || shell.ends_with("powershell");
     let is_cmd = shell.ends_with("cmd") || shell.ends_with("cmd.exe");
-    let needs_powershell_fallback_capture = cfg!(windows)
-        && (shell == "powershell" || shell.ends_with("powershell.exe"));
+    let needs_powershell_fallback_capture =
+        cfg!(windows) && (shell == "powershell" || shell.ends_with("powershell.exe"));
 
     // Extract shell integration script to a temporary file
     let mut temp_script_path = None;
@@ -477,7 +477,9 @@ async fn handle_socket(socket: WebSocket, params: ConnectParams) {
 
         fn flush_plain_text(&mut self, text: String) {
             if !text.is_empty() {
-                let _ = self.tx_log.blocking_send(ServerLogMsg::LogOutput { data: text });
+                let _ = self
+                    .tx_log
+                    .blocking_send(ServerLogMsg::LogOutput { data: text });
             }
         }
 

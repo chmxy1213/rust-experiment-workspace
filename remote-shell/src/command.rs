@@ -165,11 +165,15 @@ pub mod winpty_impl {
             return OsString::from(cmd);
         }
 
-        let system_root = std::env::var_os("SystemRoot").unwrap_or_else(|| OsString::from("C:\\Windows"));
+        let system_root =
+            std::env::var_os("SystemRoot").unwrap_or_else(|| OsString::from("C:\\Windows"));
         let system_root = PathBuf::from(system_root);
 
         match cmd_lower.as_str() {
-            "cmd" | "cmd.exe" => system_root.join("System32").join("cmd.exe").into_os_string(),
+            "cmd" | "cmd.exe" => system_root
+                .join("System32")
+                .join("cmd.exe")
+                .into_os_string(),
             "powershell" | "powershell.exe" => system_root
                 .join("System32")
                 .join("WindowsPowerShell")
@@ -224,13 +228,8 @@ pub mod winpty_impl {
                 cmdline.as_ref().map(|s| s.to_string_lossy().to_string())
             );
 
-            pty.spawn(
-                app,
-                cmdline,
-                None,
-                None,
-            )
-            .map_err(|e| anyhow::anyhow!("Failed to spawn winpty: {:?}", e))?;
+            pty.spawn(app, cmdline, None, None)
+                .map_err(|e| anyhow::anyhow!("Failed to spawn winpty: {:?}", e))?;
 
             let pty_arc = Arc::new(Mutex::new(pty));
             self.pty = Some(pty_arc.clone());
