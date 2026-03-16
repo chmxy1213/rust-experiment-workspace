@@ -1,0 +1,23 @@
+http_listen = "0.0.0.0:8088"
+grpc_listen = "0.0.0.0:50061"
+workspace_dir = "."
+
+[[build_targets]]
+name = "remote-shell-linux"
+build_script = "cargo build --release -p remote-shell --target x86_64-unknown-linux-musl"
+artifact_path = "target/x86_64-unknown-linux-musl/release/remote-shell"
+destination_path = "/opt/remote-shell/bin/remote-shell"
+required_labels = ["linux", "prod"]
+pre_hooks = ["echo preparing $SV_TARGET_NAME for $SV_DESTINATION_PATH"]
+post_hooks = ["echo deployed $SV_TARGET_NAME md5=$SV_BUILD_MD5"]
+executable = true
+backup_suffix = "bak"
+
+[[build_targets]]
+name = "remote-shell-macos"
+build_script = "cargo build --release -p remote-shell"
+artifact_path = "target/release/remote-shell"
+destination_path = "services/remote-shell"
+required_labels = ["macos"]
+executable = true
+backup_suffix = "bak"

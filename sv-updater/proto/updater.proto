@@ -1,0 +1,55 @@
+syntax = "proto3";
+
+package svupdater;
+
+service AgentService {
+  rpc OpenSession(stream ClientMessage) returns (stream ServerMessage);
+}
+
+message ClientHello {
+  string client_id = 1;
+  string hostname = 2;
+  string platform = 3;
+  repeated string labels = 4;
+  string root_dir = 5;
+}
+
+message Heartbeat {
+  int64 unix_seconds = 1;
+}
+
+message DeployCommand {
+  string deployment_id = 1;
+  string target_name = 2;
+  string artifact_name = 3;
+  bytes artifact_bytes = 4;
+  string destination_path = 5;
+  repeated string pre_hooks = 6;
+  repeated string post_hooks = 7;
+  bool executable = 8;
+  string backup_suffix = 9;
+  string build_md5 = 10;
+}
+
+message DeployResult {
+  string deployment_id = 1;
+  string target_name = 2;
+  bool success = 3;
+  string message = 4;
+  string installed_md5 = 5;
+  string backup_path = 6;
+}
+
+message ServerMessage {
+  oneof payload {
+    DeployCommand deploy = 1;
+  }
+}
+
+message ClientMessage {
+  oneof payload {
+    ClientHello hello = 1;
+    Heartbeat heartbeat = 2;
+    DeployResult deploy_result = 3;
+  }
+}

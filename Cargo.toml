@@ -8,7 +8,7 @@ members = [
     "loki-demo",
     "signoz-demo",
     "log-server",
-    "winpty-rs",
+    "winpty-rs", "sv-updater",
 ]
 exclude = [
     "pty-bash-hook"

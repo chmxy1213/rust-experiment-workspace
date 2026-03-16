@@ -1,0 +1,6 @@
+server_addr = "127.0.0.1:50061"
+client_id = "node-a"
+hostname = "node-a"
+labels = ["linux", "prod"]
+root_dir = "/tmp/sv-updater-client"
+heartbeat_seconds = 5

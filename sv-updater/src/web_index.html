@@ -1,0 +1,368 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>SV Updater</title>
+  <style>
+    :root {
+      --bg: #0f1720;
+      --panel: rgba(13, 23, 34, 0.78);
+      --panel-strong: rgba(18, 31, 46, 0.94);
+      --line: rgba(150, 190, 214, 0.18);
+      --text: #e9f0f7;
+      --muted: #9ab0c4;
+      --accent: #ff8452;
+      --accent-2: #7be0c3;
+      --danger: #ff6d83;
+      --success: #7be0c3;
+      --shadow: 0 24px 80px rgba(0, 0, 0, 0.35);
+      font-family: "SF Pro Display", "PingFang SC", "Helvetica Neue", sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      color: var(--text);
+      background:
+        radial-gradient(circle at top left, rgba(255, 132, 82, 0.26), transparent 32%),
+        radial-gradient(circle at top right, rgba(123, 224, 195, 0.20), transparent 28%),
+        linear-gradient(135deg, #081019 0%, #111d2c 48%, #182739 100%);
+      min-height: 100vh;
+    }
+    .shell {
+      width: min(1180px, calc(100vw - 32px));
+      margin: 24px auto 48px;
+    }
+    .hero {
+      padding: 28px;
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      background: linear-gradient(145deg, rgba(14,24,36,0.96), rgba(16,33,48,0.72));
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(20px);
+    }
+    h1 {
+      margin: 0;
+      font-size: clamp(30px, 4vw, 48px);
+      letter-spacing: -0.04em;
+    }
+    .hero p {
+      margin: 12px 0 0;
+      color: var(--muted);
+      max-width: 760px;
+      line-height: 1.6;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr;
+      gap: 18px;
+      margin-top: 18px;
+    }
+    .panel {
+      border: 1px solid var(--line);
+      border-radius: 22px;
+      background: var(--panel);
+      box-shadow: var(--shadow);
+      padding: 20px;
+      backdrop-filter: blur(16px);
+    }
+    .panel h2 {
+      margin: 0 0 14px;
+      font-size: 18px;
+      letter-spacing: 0.02em;
+    }
+    .list {
+      display: grid;
+      gap: 10px;
+      max-height: 360px;
+      overflow: auto;
+    }
+    .item {
+      border: 1px solid var(--line);
+      background: var(--panel-strong);
+      border-radius: 18px;
+      padding: 14px;
+    }
+    .item label {
+      display: grid;
+      gap: 8px;
+      cursor: pointer;
+    }
+    .item-title {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      font-weight: 700;
+    }
+    .item small,
+    .meta,
+    .mono {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.5;
+      word-break: break-all;
+    }
+    .tag-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .tag {
+      padding: 4px 9px;
+      border-radius: 999px;
+      background: rgba(123, 224, 195, 0.12);
+      border: 1px solid rgba(123, 224, 195, 0.24);
+      color: #b9f2e3;
+      font-size: 12px;
+    }
+    .actions {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      margin-top: 16px;
+      flex-wrap: wrap;
+    }
+    button {
+      appearance: none;
+      border: 0;
+      border-radius: 999px;
+      padding: 12px 20px;
+      background: linear-gradient(135deg, var(--accent), #ffb067);
+      color: #111;
+      font-weight: 800;
+      cursor: pointer;
+      transition: transform 120ms ease, filter 120ms ease;
+    }
+    button:hover { transform: translateY(-1px); filter: brightness(1.03); }
+    button:disabled { cursor: wait; opacity: 0.7; }
+    .notice { color: var(--muted); font-size: 13px; }
+    .status { font-size: 13px; }
+    .status.success { color: var(--success); }
+    .status.failed { color: var(--danger); }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    th, td {
+      text-align: left;
+      padding: 12px 10px;
+      border-bottom: 1px solid var(--line);
+      vertical-align: top;
+    }
+    th { color: var(--muted); font-weight: 600; }
+    .deployments {
+      margin-top: 18px;
+    }
+    .deploy-card {
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: rgba(7, 14, 24, 0.62);
+      padding: 16px;
+      margin-bottom: 12px;
+    }
+    .deploy-card h3 {
+      margin: 0 0 8px;
+      font-size: 15px;
+    }
+    .deploy-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    @media (max-width: 920px) {
+      .grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <section class="hero">
+      <h1>SV Updater</h1>
+      <p>一次编译，多机分发。服务端负责触发构建、推送二进制，客户端负责备份、替换、执行钩子并回传结果。</p>
+    </section>
+    <section class="grid">
+      <div class="panel">
+        <h2>1. 选择构建目标</h2>
+        <div id="targets" class="list"></div>
+      </div>
+      <div class="panel">
+        <h2>2. 选择更新机器</h2>
+        <div id="clients" class="list"></div>
+      </div>
+    </section>
+    <section class="panel">
+      <div class="actions">
+        <div>
+          <button id="deploy-btn">开始部署</button>
+          <span id="deploy-status" class="notice">等待操作</span>
+        </div>
+        <div class="notice">页面每 3 秒自动刷新一次状态</div>
+      </div>
+    </section>
+    <section class="panel deployments">
+      <h2>3. 部署记录</h2>
+      <div id="deployments"></div>
+    </section>
+  </main>
+  <script>
+    const targetsEl = document.getElementById('targets');
+    const clientsEl = document.getElementById('clients');
+    const deploymentsEl = document.getElementById('deployments');
+    const deployBtn = document.getElementById('deploy-btn');
+    const deployStatus = document.getElementById('deploy-status');
+
+    function escapeHtml(value) {
+      return String(value ?? '')
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;');
+    }
+
+    function renderTags(tags) {
+      if (!tags || tags.length === 0) {
+        return '<span class="tag">无标签</span>';
+      }
+      return tags.map(tag => `<span class="tag">${escapeHtml(tag)}</span>`).join('');
+    }
+
+    function selectedValues(name) {
+      return Array.from(document.querySelectorAll(`input[name="${name}"]:checked`)).map(input => input.value);
+    }
+
+    function renderTargets(items) {
+      targetsEl.innerHTML = items.map(item => `
+        <article class="item">
+          <label>
+            <div class="item-title">
+              <span><input type="checkbox" name="target" value="${escapeHtml(item.name)}" /> ${escapeHtml(item.name)}</span>
+              <span class="tag-row">${renderTags(item.required_labels)}</span>
+            </div>
+            <small>构建脚本</small>
+            <div class="mono">${escapeHtml(item.build_script)}</div>
+            <small>产物路径</small>
+            <div class="mono">${escapeHtml(item.artifact_path)}</div>
+            <small>目标路径</small>
+            <div class="mono">${escapeHtml(item.destination_path)}</div>
+          </label>
+        </article>
+      `).join('');
+    }
+
+    function renderClients(items) {
+      clientsEl.innerHTML = items.length === 0
+        ? '<div class="item"><div class="notice">当前没有在线客户端</div></div>'
+        : items.map(item => `
+            <article class="item">
+              <label>
+                <div class="item-title">
+                  <span><input type="checkbox" name="client" value="${escapeHtml(item.client_id)}" /> ${escapeHtml(item.client_id)}</span>
+                  <span class="status success">在线</span>
+                </div>
+                <div class="meta">主机: ${escapeHtml(item.hostname)} | 平台: ${escapeHtml(item.platform)}</div>
+                <div class="meta">目录: ${escapeHtml(item.root_dir)}</div>
+                <div class="tag-row">${renderTags(item.labels)}</div>
+              </label>
+            </article>
+          `).join('');
+    }
+
+    function renderDeployments(items) {
+      deploymentsEl.innerHTML = items.length === 0
+        ? '<div class="notice">暂无部署记录</div>'
+        : items.map(item => `
+          <article class="deploy-card">
+            <div class="deploy-head">
+              <h3>${escapeHtml(item.deployment_id)}</h3>
+              <div class="status ${item.status.includes('fail') ? 'failed' : 'success'}">${escapeHtml(item.status)}</div>
+            </div>
+            <div class="meta">${escapeHtml(item.message)}</div>
+            <div class="meta">目标: ${escapeHtml(item.requested_targets.join(', '))}</div>
+            <div class="meta">机器: ${escapeHtml(item.requested_clients.join(', '))}</div>
+            <table>
+              <thead>
+                <tr>
+                  <th>客户端</th>
+                  <th>目标</th>
+                  <th>状态</th>
+                  <th>MD5</th>
+                  <th>信息</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${item.entries.map(entry => `
+                  <tr>
+                    <td>${escapeHtml(entry.client_id)}</td>
+                    <td>${escapeHtml(entry.target_name)}</td>
+                    <td class="status ${entry.status === 'success' ? 'success' : entry.status === 'failed' ? 'failed' : ''}">${escapeHtml(entry.status)}</td>
+                    <td>
+                      <div class="mono">构建: ${escapeHtml(entry.expected_md5 || '-')}</div>
+                      <div class="mono">安装: ${escapeHtml(entry.installed_md5 || '-')}</div>
+                    </td>
+                    <td>
+                      <div>${escapeHtml(entry.message)}</div>
+                      <div class="mono">${escapeHtml(entry.backup_path || '')}</div>
+                    </td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </article>
+        `).join('');
+    }
+
+    async function refresh() {
+      const response = await fetch('/api/state');
+      if (!response.ok) {
+        deployStatus.textContent = `状态刷新失败: ${response.status}`;
+        return;
+      }
+      const data = await response.json();
+      renderTargets(data.build_targets || []);
+      renderClients(data.connected_clients || []);
+      renderDeployments(data.deployments || []);
+    }
+
+    async function deploy() {
+      const targets = selectedValues('target');
+      const clients = selectedValues('client');
+      if (targets.length === 0 || clients.length === 0) {
+        deployStatus.textContent = '至少选择一个构建目标和一个客户端';
+        return;
+      }
+
+      deployBtn.disabled = true;
+      deployStatus.textContent = '正在创建部署任务...';
+
+      try {
+        const response = await fetch('/api/deploy', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ targets, clients })
+        });
+
+        if (!response.ok) {
+          deployStatus.textContent = await response.text();
+          return;
+        }
+
+        const data = await response.json();
+        deployStatus.textContent = `部署任务已创建: ${data.deployment_id}`;
+        await refresh();
+      } catch (error) {
+        deployStatus.textContent = `请求失败: ${error}`;
+      } finally {
+        deployBtn.disabled = false;
+      }
+    }
+
+    deployBtn.addEventListener('click', deploy);
+    refresh();
+    setInterval(refresh, 3000);
+  </script>
+</body>
+</html>
