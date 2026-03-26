@@ -1,29 +1,31 @@
-use std::env;
-use std::ffi::OsStr;
-use std::os::windows::ffi::OsStrExt;
+#[cfg(windows)]
+use std::{env, ffi::OsStr, os::windows::ffi::OsStrExt};
 
+#[cfg(windows)]
 use windows::{
-    core::{PCWSTR, PWSTR},
     Win32::{
         Foundation::{CloseHandle, HANDLE, LUID},
         Security::{
-            AdjustTokenPrivileges, DuplicateTokenEx, LookupPrivilegeValueW, SecurityImpersonation,
-            TokenPrimary, LUID_AND_ATTRIBUTES, SE_PRIVILEGE_ENABLED, TOKEN_ADJUST_PRIVILEGES,
-            TOKEN_ALL_ACCESS, TOKEN_DUPLICATE, TOKEN_PRIVILEGES, TOKEN_QUERY,
+            AdjustTokenPrivileges, DuplicateTokenEx, LUID_AND_ATTRIBUTES, LookupPrivilegeValueW,
+            SE_PRIVILEGE_ENABLED, SecurityImpersonation, TOKEN_ADJUST_PRIVILEGES, TOKEN_ALL_ACCESS,
+            TOKEN_DUPLICATE, TOKEN_PRIVILEGES, TOKEN_QUERY, TokenPrimary,
         },
         System::{
             Diagnostics::ToolHelp::{
-                CreateToolhelp32Snapshot, Process32FirstW, Process32NextW, PROCESSENTRY32W,
+                CreateToolhelp32Snapshot, PROCESSENTRY32W, Process32FirstW, Process32NextW,
                 TH32CS_SNAPPROCESS,
             },
             Threading::{
-                CreateProcessWithTokenW, OpenProcess, OpenProcessToken, CREATE_UNICODE_ENVIRONMENT,
-                LOGON_WITH_PROFILE, PROCESS_INFORMATION, PROCESS_QUERY_INFORMATION, STARTUPINFOW,
+                CREATE_UNICODE_ENVIRONMENT, CreateProcessWithTokenW, LOGON_WITH_PROFILE,
+                OpenProcess, OpenProcessToken, PROCESS_INFORMATION, PROCESS_QUERY_INFORMATION,
+                STARTUPINFOW,
             },
         },
     },
+    core::{PCWSTR, PWSTR},
 };
 
+#[cfg(windows)]
 fn get_process_id_by_name(process_name: &str) -> Option<u32> {
     unsafe {
         let snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0).ok()?;
@@ -50,6 +52,7 @@ fn get_process_id_by_name(process_name: &str) -> Option<u32> {
     None
 }
 
+#[cfg(windows)]
 fn enable_privilege(privilege_name: &str) -> Result<(), windows::core::Error> {
     unsafe {
         let mut current_process_token = HANDLE::default();
@@ -89,6 +92,7 @@ fn enable_privilege(privilege_name: &str) -> Result<(), windows::core::Error> {
     Ok(())
 }
 
+#[cfg(windows)]
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<String> = env::args().collect();
     let target_process = if args.len() > 1 { &args[1] } else { "cmd.exe" };
@@ -159,4 +163,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     Ok(())
+}
+
+#[cfg(not(windows))]
+fn main() {
+    println!("This program is only supported on Windows.");
 }
