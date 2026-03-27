@@ -11,10 +11,7 @@ use windows::{
             TOKEN_DUPLICATE, TOKEN_PRIVILEGES, TOKEN_QUERY, TokenPrimary,
         },
         System::{
-            Diagnostics::ToolHelp::{
-                CreateToolhelp32Snapshot, PROCESSENTRY32W, Process32FirstW, Process32NextW,
-                TH32CS_SNAPPROCESS,
-            },
+            Environment::{CreateEnvironmentBlock, DestroyEnvironmentBlock},
             Threading::{
                 CREATE_UNICODE_ENVIRONMENT, CreateProcessWithTokenW, LOGON_WITH_PROFILE,
                 OpenProcess, OpenProcessToken, PROCESS_INFORMATION, PROCESS_QUERY_INFORMATION,
@@ -24,33 +21,6 @@ use windows::{
     },
     core::{PCWSTR, PWSTR},
 };
-
-#[cfg(windows)]
-fn get_process_id_by_name(process_name: &str) -> Option<u32> {
-    unsafe {
-        let snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0).ok()?;
-        let mut entry = PROCESSENTRY32W {
-            dwSize: std::mem::size_of::<PROCESSENTRY32W>() as u32,
-            ..Default::default()
-        };
-
-        if Process32FirstW(snapshot, &mut entry).is_ok() {
-            loop {
-                let name = String::from_utf16_lossy(&entry.szExeFile);
-                let name = name.trim_matches(char::from(0));
-                if name.eq_ignore_ascii_case(process_name) {
-                    let _ = CloseHandle(snapshot);
-                    return Some(entry.th32ProcessID);
-                }
-                if Process32NextW(snapshot, &mut entry).is_err() {
-                    break;
-                }
-            }
-        }
-        let _ = CloseHandle(snapshot);
-    }
-    None
-}
 
 #[cfg(windows)]
 fn enable_privilege(privilege_name: &str) -> Result<(), windows::core::Error> {
@@ -93,6 +63,57 @@ fn enable_privilege(privilege_name: &str) -> Result<(), windows::core::Error> {
 }
 
 #[cfg(windows)]
+fn parse_env_block(env_block: *mut std::ffi::c_void) -> std::collections::HashMap<String, String> {
+    let mut map = std::collections::HashMap::new();
+    let mut ptr = env_block as *const u16;
+
+    unsafe {
+        while *ptr != 0 {
+            let mut len = 0;
+            while *ptr.add(len) != 0 {
+                len += 1;
+            }
+            let slice = std::slice::from_raw_parts(ptr, len);
+            if let Ok(s) = String::from_utf16(slice) {
+                // Handle hidden variables that start with '=' (e.g., =C: for current directory)
+                if s.starts_with('=') {
+                    // We can't easily store these in a standard HashMap without conflicts or special handling.
+                    // For now, we'll prefix them with a special character or just skip if we don't strictly need them
+                    // for the specific use case. But better to try to preserve if possible.
+                    // A simple hack: Store them with the full string as the value and a generated key,
+                    // or just skip. Most apps don't rely on them.
+                    // Let's skip them for simplicity in this example to avoid HashMap key collisions for empty keys.
+                } else if let Some((key, value)) = s.split_once('=') {
+                    map.insert(key.to_string(), value.to_string());
+                }
+            }
+            ptr = ptr.add(len + 1);
+        }
+    }
+    map
+}
+
+#[cfg(windows)]
+fn create_env_block(map: &std::collections::HashMap<String, String>) -> Vec<u16> {
+    let mut block = Vec::new();
+    let mut keys: Vec<&String> = map.keys().collect();
+    keys.sort_by(|a, b| a.to_lowercase().cmp(&b.to_lowercase()));
+
+    for key in keys {
+        let value = &map[key];
+        block.extend(std::ffi::OsStr::new(key).encode_wide());
+        block.push('=' as u16);
+        block.extend(std::ffi::OsStr::new(value).encode_wide());
+        block.push(0);
+    }
+    block.push(0);
+    block
+}
+
+#[cfg(windows)]
+use sysinfo::System; // Use System trait from sysinfo
+
+#[cfg(windows)]
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<String> = env::args().collect();
     let target_process = if args.len() > 1 { &args[1] } else { "cmd.exe" };
@@ -101,7 +122,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     enable_privilege("SeDebugPrivilege")?;
 
     println!("[*] Finding winlogon.exe process ID...");
-    let winlogon_pid = get_process_id_by_name("winlogon.exe").expect("Failed to find winlogon.exe");
+    let mut system = System::new_all();
+    system.refresh_all();
+
+    let winlogon_pid = system
+        .processes_by_name("winlogon.exe".as_ref())
+        .next()
+        .map(|p| p.pid().as_u32())
+        .ok_or("Failed to find winlogon.exe")?;
+
     println!("[+] winlogon.exe PID: {}", winlogon_pid);
 
     unsafe {
@@ -138,17 +167,24 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         };
         let mut process_information = PROCESS_INFORMATION::default();
 
-        CreateProcessWithTokenW(
+        println!("[*] Creating environment block...");
+        let mut lp_environment: *mut std::ffi::c_void = std::ptr::null_mut();
+        CreateEnvironmentBlock(&mut lp_environment, h_dup_token, false)?;
+
+        let res = CreateProcessWithTokenW(
             h_dup_token,
             LOGON_WITH_PROFILE,
             None,
             PWSTR(command_line.as_mut_ptr()),
             CREATE_UNICODE_ENVIRONMENT,
-            None,
+            Some(lp_environment as *const std::ffi::c_void),
             None,
             &mut startup_info,
             &mut process_information,
-        )?;
+        );
+
+        DestroyEnvironmentBlock(lp_environment)?;
+        res?;
 
         println!(
             "[+] Process created successfully! PID: {}",
