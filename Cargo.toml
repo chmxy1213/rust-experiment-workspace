@@ -11,6 +11,7 @@ members = [
     "winpty-rs",
     "sv-updater",
     "system-user",
+    "traffic-forward",
 ]
 exclude = [
     "pty-bash-hook"
