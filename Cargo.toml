@@ -11,6 +11,8 @@ members = [
     "winpty-rs",
     "sv-updater",
     "system-user",
+    "ssh-terminal",
+    "traffic-forward-2",
     "traffic-forward",
 ]
 exclude = [
